@@ -24,28 +24,35 @@ from app.models.schemas import SourceDocument
 # ─── FINANCIAL RAG PROMPT ──────────────────────────────────────────────────
 FINANCIAL_RAG_PROMPT = PromptTemplate(
     template="""You are FinBot, an expert financial analyst AI assistant.
-Answer the question based ONLY on the provided context documents.
 
-STRICT RULES:
-1. Only use information from the context below
-2. If the answer is not in the context, say "I don't have enough information in the provided documents to answer this question."
-3. Always cite which document/section your answer comes from
-4. Be precise with numbers, dates, and financial figures
-5. Never make up financial data or predictions
+INSTRUCTIONS:
+1. Read the context documents below carefully
+2. Answer the user's question using ONLY data found in the context
+3. Quote exact numbers, percentages, and dollar amounts as they appear
+4. Cite the document name and page/section where you found the data
+5. If the context contains ANY relevant information, you MUST answer — do NOT refuse
+6. Only say "I don't have enough information in the provided documents to answer this question." when the context has absolutely nothing related to the question
+7. Never invent financial data that is not in the context
 
 Context Documents:
 {context}
 
 Question: {question}
 
-Answer (cite your sources):""",
+Answer:""",
     input_variables=["context", "question"]
 )
 
 # ─── QUERY REWRITE PROMPT ──────────────────────────────────────────────────
 QUERY_REWRITE_PROMPT = """Rewrite this financial query to improve document retrieval accuracy.
-Make it more specific and include relevant financial terminology.
-Return ONLY the rewritten query, nothing else.
+
+RULES:
+- Keep the original meaning and intent exactly the same
+- Add relevant financial terminology (e.g., "revenue" → "total revenue", "debt" → "debt-to-equity ratio")
+- NEVER invent or assume company names, ticker symbols, or specific years/dates
+- NEVER add information that was not in the original query
+- If the query is already clear and specific, return it unchanged
+- Return ONLY the rewritten query, nothing else
 
 Original query: {query}
 Rewritten query:"""
@@ -251,16 +258,31 @@ class FinancialRAGPipeline:
         
         # Persist
         self._save_vectorstore()
-        
+
+        # Save document record to DB (fire-and-forget)
+        asyncio.ensure_future(self._save_document_to_db(file_path, filename, len(chunks)))
+
         print(f"✅ Ingested {filename}: {len(chunks)} chunks created")
         return len(chunks)
+
+    async def _save_document_to_db(self, file_path: str, filename: str, chunks_created: int):
+        from app.db import service as db_service
+        await db_service.save_document_record(
+            filename=filename,
+            file_size_bytes=os.path.getsize(file_path),
+            chunks_created=chunks_created,
+        )
     
     def _rewrite_query(self, query: str) -> str:
-        """Rewrite query for better retrieval"""
+        """Rewrite query for better retrieval. Skip for short/clear queries."""
+        # Short, clear queries don't need rewriting — it often makes them worse
+        if len(query.split()) <= 8:
+            return query
         try:
             prompt = QUERY_REWRITE_PROMPT.format(query=query)
-            rewritten = self.llm.predict(prompt).strip()
-            if rewritten and len(rewritten) > 5:
+            rewritten = self.llm.invoke(prompt).content.strip()
+            # Reject rewrites that introduce hallucinated content
+            if rewritten and len(rewritten) > 5 and "company xyz" not in rewritten.lower():
                 return rewritten
         except:
             pass
@@ -312,33 +334,39 @@ class FinancialRAGPipeline:
             self.stats["cache_hits"] += 1
             cached["from_cache"] = True
             cached["response_time_ms"] = round((time.time() - start_time) * 1000, 2)
+            # Log cached query to DB
+            asyncio.ensure_future(self._log_query_to_db(
+                question=question,
+                rewritten_query=None,
+                answer=cached.get("answer", ""),
+                confidence_score=cached.get("confidence_score", 0),
+                confident=cached.get("confident", True),
+                from_cache=True,
+                response_time_ms=cached["response_time_ms"],
+                user_id=user_id,
+                session_id=session_id,
+            ))
             return cached
         
         # 2. Rewrite query for better retrieval
         rewritten_query = self._rewrite_query(question)
         
-        # 3. Retrieve relevant documents
-        retriever = self.vectorstore.as_retriever(
-            search_type="similarity",
-            search_kwargs={"k": settings.TOP_K_RESULTS}
+        # 3. Retrieve relevant documents using REWRITTEN query (better semantic match)
+        docs = await asyncio.get_event_loop().run_in_executor(
+            None,
+            lambda: self.vectorstore.similarity_search(rewritten_query, k=settings.TOP_K_RESULTS)
         )
-        
-        # 4. Build QA chain with financial prompt
-        qa_chain = RetrievalQA.from_chain_type(
-            llm=self.llm,
-            chain_type="stuff",
-            retriever=retriever,
-            return_source_documents=True,
-            chain_type_kwargs={"prompt": FINANCIAL_RAG_PROMPT}
+
+        # 4. Build context from retrieved documents
+        context = "\n\n---\n\n".join([doc.page_content for doc in docs])
+
+        # 5. Generate answer using ORIGINAL question (avoids hallucinated rewrites confusing the LLM)
+        filled_prompt = FINANCIAL_RAG_PROMPT.format(context=context, question=question)
+        answer = await asyncio.get_event_loop().run_in_executor(
+            None, lambda: self.llm.predict(filled_prompt)
         )
-        
-        # 5. Generate answer
-        result = await asyncio.get_event_loop().run_in_executor(
-            None, lambda: qa_chain({"query": rewritten_query})
-        )
-        
-        answer = result["result"]
-        source_docs = result.get("source_documents", [])
+
+        source_docs = docs
         sources = self._format_sources(source_docs)
         
         # 6. Hallucination detection
@@ -360,8 +388,21 @@ class FinancialRAGPipeline:
         
         # 8. Cache the result
         self.cache.set(cache_key, response)
-        
-        # 9. Store in conversation history
+
+        # 9. Log query to DB (fire-and-forget)
+        asyncio.ensure_future(self._log_query_to_db(
+            question=question,
+            rewritten_query=rewritten_query if rewritten_query != question else None,
+            answer=answer,
+            confidence_score=confidence_score,
+            confident=is_confident,
+            from_cache=False,
+            response_time_ms=response["response_time_ms"],
+            user_id=user_id,
+            session_id=session_id,
+        ))
+
+        # 10. Store in conversation history
         if session_id:
             if session_id not in self.conversation_history:
                 self.conversation_history[session_id] = []
@@ -371,7 +412,16 @@ class FinancialRAGPipeline:
             self.conversation_history[session_id].append({
                 "role": "assistant", "content": answer
             })
-        
+            # Persist to DB (fire-and-forget)
+            asyncio.ensure_future(self._save_conversation_to_db(
+                session_id=session_id,
+                question=question,
+                answer=answer,
+                is_confident=is_confident,
+                confidence_score=confidence_score,
+                sources=sources,
+            ))
+
         return response
     
     def _demo_response(self, question: str, start_time: float) -> dict:
@@ -387,6 +437,26 @@ class FinancialRAGPipeline:
             "timestamp": datetime.now().isoformat()
         }
     
+    async def _log_query_to_db(self, **kwargs):
+        from app.db import service as db_service
+        await db_service.log_query(**kwargs)
+
+    async def _save_conversation_to_db(
+        self, session_id, question, answer, is_confident, confidence_score, sources
+    ):
+        from app.db import service as db_service
+        await db_service.save_conversation_message(
+            session_id=session_id, role="user", content=question
+        )
+        await db_service.save_conversation_message(
+            session_id=session_id,
+            role="assistant",
+            content=answer,
+            confident=is_confident,
+            confidence_score=confidence_score,
+            sources=[s.dict() for s in sources] if sources else None,
+        )
+
     def get_stats(self) -> dict:
         cache_hit_rate = (
             self.stats["cache_hits"] / self.stats["total_queries"]

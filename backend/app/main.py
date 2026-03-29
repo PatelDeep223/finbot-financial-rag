@@ -1,14 +1,31 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from app.api.routes import router
 from app.core.config import settings
+from app.db import init_db, async_engine
 import uvicorn
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    try:
+        await init_db()
+        print("✅ Database tables created successfully")
+    except Exception as e:
+        print(f"⚠️ Database init failed, running without persistence: {e}")
+    yield
+    # Shutdown
+    await async_engine.dispose()
+
 
 app = FastAPI(
     title="FinBot — Financial Intelligence RAG API",
     description="Anti-hallucination RAG system for financial document Q&A",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(

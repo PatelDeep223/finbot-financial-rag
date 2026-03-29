@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     CACHE_TTL: int = 3600  # 1 hour
     
     # PostgreSQL
-    DATABASE_URL: str = "postgresql://finbot:finbot123@localhost:5432/finbot"
+    DATABASE_URL: str = "postgresql+asyncpg://user:password@localhost:5432/finbot"
     
     # RAG Settings
     CHUNK_SIZE: int = 500

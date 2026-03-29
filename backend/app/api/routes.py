@@ -70,12 +70,26 @@ async def upload_document(file: UploadFile = File(...)):
 @router.get("/stats")
 async def get_system_stats():
     """Get system statistics - queries, cache hit rate, uptime"""
-    return pipeline.get_stats()
+    from app.db import service as db_service
+
+    stats = pipeline.get_stats()
+    db_total = await db_service.get_total_query_count()
+    if db_total is not None:
+        stats["total_queries_all_time"] = db_total
+        db_cache_hits = await db_service.get_total_cache_hits()
+        stats["cache_hits_all_time"] = db_cache_hits or 0
+    return stats
 
 
 @router.get("/history/{session_id}")
 async def get_conversation_history(session_id: str):
     """Get conversation history for a session"""
+    from app.db import service as db_service
+
+    db_messages = await db_service.get_conversation_history(session_id)
+    if db_messages is not None:
+        return {"session_id": session_id, "messages": db_messages}
+    # Fallback to in-memory
     history = pipeline.conversation_history.get(session_id, [])
     return {"session_id": session_id, "messages": history}
 
@@ -83,6 +97,9 @@ async def get_conversation_history(session_id: str):
 @router.delete("/history/{session_id}")
 async def clear_conversation_history(session_id: str):
     """Clear conversation history for a session"""
+    from app.db import service as db_service
+
+    await db_service.delete_conversation_history(session_id)
     if session_id in pipeline.conversation_history:
         del pipeline.conversation_history[session_id]
     return {"message": f"History cleared for session {session_id}"}
@@ -91,10 +108,18 @@ async def clear_conversation_history(session_id: str):
 @router.get("/documents")
 async def list_documents():
     """List all ingested documents"""
+    from app.db import service as db_service
+
+    # Try DB first
+    db_docs = await db_service.list_documents()
+    if db_docs is not None:
+        return {"documents": db_docs, "total": len(db_docs)}
+
+    # Fallback to filesystem
     docs_path = settings.DOCUMENTS_PATH
     if not os.path.exists(docs_path):
         return {"documents": []}
-    
+
     files = []
     for f in os.listdir(docs_path):
         fp = os.path.join(docs_path, f)
@@ -105,5 +130,5 @@ async def list_documents():
                 os.path.getmtime(fp)
             ).isoformat()
         })
-    
+
     return {"documents": files, "total": len(files)}

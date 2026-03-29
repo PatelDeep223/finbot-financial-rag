@@ -1,0 +1,41 @@
+# Environment & Secrets
+.env
+backend/.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+*.egg
+dist/
+build/
+
+# Virtual environment
+venv/
+backend/venv/
+.venv/
+
+# Data (uploaded docs & vector store)
+backend/data/
+data/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Pytest
+.pytest_cache/
+backend/.pytest_cache/
+htmlcov/
+.coverage
+
+# Docker
+*.log
