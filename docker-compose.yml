@@ -1,0 +1,84 @@
+version: "3.9"
+
+services:
+  # ── FASTAPI BACKEND ──
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: finbot-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgresql://finbot:finbot123@db:5432/finbot
+      - VECTOR_STORE_PATH=/app/data/vectorstore
+      - DOCUMENTS_PATH=/app/data/documents
+    volumes:
+      - finbot-data:/app/data
+    depends_on:
+      redis:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - finbot-net
+
+  # ── REDIS CACHE ──
+  redis:
+    image: redis:7-alpine
+    container_name: finbot-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - finbot-net
+
+  # ── POSTGRESQL ──
+  db:
+    image: postgres:15-alpine
+    container_name: finbot-db
+    environment:
+      POSTGRES_DB: finbot
+      POSTGRES_USER: finbot
+      POSTGRES_PASSWORD: finbot123
+    ports:
+      - "5432:5432"
+    volumes:
+      - finbot-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U finbot"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - finbot-net
+
+  # ── NGINX FRONTEND ──
+  frontend:
+    image: nginx:alpine
+    container_name: finbot-frontend
+    ports:
+      - "3000:80"
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro
+      - ./docker/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - backend
+    networks:
+      - finbot-net
+
+volumes:
+  finbot-data:
+  finbot-pgdata:
+
+networks:
+  finbot-net:
+    driver: bridge
