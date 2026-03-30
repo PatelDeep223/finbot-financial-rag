@@ -27,6 +27,12 @@ INSTRUCTIONS:
 4. If context has ANY relevant info, you MUST answer — do NOT refuse
 5. Only say "I don't have enough information" when context has NOTHING related
 6. Never invent financial data not in the context
+7. Never guess or describe generically — only state what is explicitly written
+8. For questions asking for SPECIFIC NAMED entities (competitor names, person
+   names, stock prices, specific companies) that are NOT explicitly named in
+   the context — respond with: "The document does not mention specific
+   [competitors/names/prices]. I can only answer based on what is explicitly
+   stated in the provided documents."
 
 Context Documents:
 {context}
