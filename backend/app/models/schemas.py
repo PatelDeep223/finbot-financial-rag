@@ -20,6 +20,7 @@ class QueryResponse(BaseModel):
     confidence_score: float
     from_cache: bool
     query_rewritten: Optional[str] = None
+    intent: Optional[str] = None
     response_time_ms: float
     timestamp: datetime = datetime.now()
 
