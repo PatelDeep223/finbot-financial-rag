@@ -396,6 +396,27 @@
       font-size: 14px;
       line-height: 1.65;
       color: var(--text);
+      white-space: pre-wrap;
+    }
+
+    .bubble-text .section-label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-top: 12px;
+      margin-bottom: 2px;
+    }
+
+    .bubble-text .section-label:first-child {
+      margin-top: 0;
+    }
+
+    .bubble-text .insight-text {
+      color: var(--gold);
+      font-style: italic;
     }
 
     /* Confidence badge */
@@ -434,6 +455,16 @@
       background: rgba(245,158,11,0.15);
       color: var(--gold);
       border: 1px solid rgba(245,158,11,0.2);
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 500;
+    }
+
+    .intent-badge {
+      background: rgba(124,58,237,0.15);
+      color: #a78bfa;
+      border: 1px solid rgba(124,58,237,0.2);
       padding: 3px 8px;
       border-radius: 12px;
       font-size: 11px;
@@ -700,13 +731,13 @@
       <div class="welcome" id="welcome">
         <div class="welcome-icon">💹</div>
         <h2>Financial Intelligence Assistant</h2>
-        <p>Upload financial documents and ask questions. I use RAG with anti-hallucination to give accurate, source-cited answers.</p>
+        <p>Upload financial documents and ask questions. Powered by hybrid retrieval (BM25 + FAISS), cross-encoder reranking, and anti-hallucination for accurate, source-cited answers.</p>
         <div class="sample-questions">
-          <div class="sample-q" onclick="askSample(this)">What is the revenue for Q3?</div>
-          <div class="sample-q" onclick="askSample(this)">Summarize the risk factors</div>
-          <div class="sample-q" onclick="askSample(this)">What are the key financial metrics?</div>
-          <div class="sample-q" onclick="askSample(this)">Explain the debt structure</div>
-          <div class="sample-q" onclick="askSample(this)">What is the profit margin?</div>
+          <div class="sample-q" onclick="askSample(this)">🔍 What is the Q3 revenue?</div>
+          <div class="sample-q" onclick="askSample(this)">⚖️ Compare Q3 vs Q2 revenue</div>
+          <div class="sample-q" onclick="askSample(this)">📋 Summarize the risk factors</div>
+          <div class="sample-q" onclick="askSample(this)">🔍 What is the operating margin?</div>
+          <div class="sample-q" onclick="askSample(this)">🔍 How much free cash flow?</div>
         </div>
       </div>
     </div>
@@ -723,7 +754,7 @@
         ></textarea>
         <button class="send-btn" id="send-btn" onclick="sendQuery()">➤</button>
       </div>
-      <div class="input-hint">Press Enter to send · Shift+Enter for new line · Powered by RAG + Anti-Hallucination</div>
+      <div class="input-hint">Press Enter to send · Shift+Enter for new line · Hybrid RAG + Reranker + Anti-Hallucination</div>
     </div>
   </div>
 </div>
@@ -836,12 +867,15 @@
 
     let sourcesHtml = '';
     if (data.sources && data.sources.length > 0) {
-      const items = data.sources.map(s => `
-        <div class="source-item">
-          <div class="source-name">📄 ${escapeHtml(s.source)}${s.page ? ` · Page ${s.page}` : ''}</div>
-          <div class="source-content">${escapeHtml(s.content)}</div>
-        </div>
-      `).join('');
+      const items = data.sources.map(s => {
+        const scorePart = s.score ? ` · Score ${(s.score).toFixed(2)}` : '';
+        return `
+          <div class="source-item">
+            <div class="source-name">📄 ${escapeHtml(s.source)}${s.page ? ` · Page ${s.page}` : ''}${scorePart}</div>
+            <div class="source-content">${escapeHtml(s.content)}</div>
+          </div>
+        `;
+      }).join('');
       sourcesHtml = `
         <div class="sources">
           <div class="sources-title">Sources</div>
@@ -850,14 +884,19 @@
       `;
     }
 
+    const intentIcons = { factual: '🔍', comparison: '⚖️', summary: '📋', risk: '⚠️', off_topic: '🚫' };
+    const intentIcon = data.intent ? (intentIcons[data.intent] || '🔍') : '';
+    const intentHtml = data.intent ? `<span class="intent-badge">${intentIcon} ${data.intent}</span>` : '';
+
     div.innerHTML = `
       <div class="avatar bot">🤖</div>
       <div class="bubble">
         ${rewriteHtml}
-        <div class="bubble-text">${escapeHtml(data.answer)}</div>
+        <div class="bubble-text">${formatAnswer(data.answer)}</div>
         ${sourcesHtml}
         <div class="confidence-bar">
           <span class="conf-badge ${confClass}">${confText}</span>
+          ${intentHtml}
           ${data.from_cache ? '<span class="cache-badge">⚡ cached</span>' : ''}
           <span class="response-time">${data.response_time_ms}ms</span>
         </div>
@@ -961,15 +1000,21 @@
         return;
       }
 
-      list.innerHTML = data.documents.map(doc => `
-        <div class="doc-item">
-          <div class="doc-icon">${doc.filename.endsWith('.pdf') ? '📕' : '📄'}</div>
-          <div class="doc-info">
-            <div class="doc-name">${escapeHtml(doc.filename)}</div>
-            <div class="doc-meta">${doc.size_kb} KB</div>
+      list.innerHTML = data.documents.map(doc => {
+        const icon = doc.filename.endsWith('.pdf') ? '📕' : '📄';
+        const size = doc.size_kb ? `${doc.size_kb} KB` : '';
+        const chunks = doc.chunks_created ? `${doc.chunks_created} chunks` : '';
+        const meta = [size, chunks].filter(Boolean).join(' · ');
+        return `
+          <div class="doc-item">
+            <div class="doc-icon">${icon}</div>
+            <div class="doc-info">
+              <div class="doc-name">${escapeHtml(doc.filename)}</div>
+              <div class="doc-meta">${meta}</div>
+            </div>
           </div>
-        </div>
-      `).join('');
+        `;
+      }).join('');
     } catch (err) {}
   }
 
@@ -984,7 +1029,12 @@
       document.getElementById('stat-uptime').textContent = Math.round(data.uptime_seconds || 0) + 's';
       document.getElementById('header-queries').textContent = data.total_queries || 0;
       document.getElementById('header-cache').textContent = (data.cache_hit_rate || 0) + '%';
-      document.getElementById('status-text').textContent = data.vectorstore_loaded ? 'Documents Loaded' : 'System Ready';
+      const statusParts = [];
+      if (data.vectorstore_loaded) statusParts.push('FAISS');
+      if (data.bm25_loaded) statusParts.push('BM25');
+      document.getElementById('status-text').textContent = statusParts.length > 0
+        ? statusParts.join(' + ') + ' Ready'
+        : 'System Ready';
     } catch (err) {}
   }
 
@@ -995,6 +1045,20 @@
     t.textContent = msg;
     document.body.appendChild(t);
     setTimeout(() => t.remove(), 3500);
+  }
+
+  // ── FORMAT STRUCTURED ANSWER ──
+  function formatAnswer(text) {
+    if (!text) return '';
+    const escaped = escapeHtml(text);
+
+    // Parse structured sections: Answer:, Key Insight:, Source:
+    return escaped
+      .replace(/^(Answer:)\s*/im, '<span class="section-label">Answer</span>')
+      .replace(/\n(Key Insight:)\s*/im, '<span class="section-label">Key Insight</span><span class="insight-text">')
+      .replace(/\n(Source:)\s*/im, '</span><span class="section-label">Source</span>')
+      .replace(/\n(Summary:)\s*/im, '<span class="section-label">Summary</span>')
+      .trim();
   }
 
   // ── ESCAPE HTML ──
