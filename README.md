@@ -7,6 +7,8 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.12-blue?logo=python" />
   <img src="https://img.shields.io/badge/FastAPI-0.109-009688?logo=fastapi" />
+  <img src="https://img.shields.io/badge/Next.js-14-000000?logo=nextdotjs" />
+  <img src="https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript" />
   <img src="https://img.shields.io/badge/OpenAI-GPT--3.5-412991?logo=openai" />
   <img src="https://img.shields.io/badge/PostgreSQL-15-336791?logo=postgresql" />
   <img src="https://img.shields.io/badge/Redis-7-DC382D?logo=redis" />
@@ -119,6 +121,7 @@ User Question
 
 ```
 Backend       Python 3.12 · FastAPI · Uvicorn · Pydantic 2.5
+Frontend      Next.js 14 · TypeScript · Tailwind CSS · SSE streaming
 LLM           LangChain · OpenAI GPT-3.5-turbo · text-embedding-3-small
 Retrieval     FAISS (vector) + BM25 (keyword) + Reciprocal Rank Fusion
 Reranking     sentence-transformers · cross-encoder/ms-marco-MiniLM-L-6-v2
@@ -127,7 +130,6 @@ Database      PostgreSQL 15 · SQLAlchemy 2.0 async · asyncpg
 Auth          JWT (PyJWT) · bcrypt · rate limiting (slowapi)
 Evaluation    Custom RAGAS (4 metrics) · MLflow experiment tracking
 Observability LangSmith (optional) · structured logging
-Frontend      Vanilla HTML/CSS/JS · SSE streaming · dark theme
 Deployment    Docker · Docker Compose · Nginx reverse proxy
 Testing       pytest (90 tests, fully mocked, <2s)
 ```
@@ -147,16 +149,21 @@ chmod +x setup.sh
 
 ### Manual Setup
 ```bash
+# Backend
 cd backend
 python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env   # add your OpenAI API key
-
-# Start server (Redis optional — falls back to local cache)
 uvicorn app.main:app --host 0.0.0.0 --port 8000
 
-# Run tests (no API keys needed)
-python -m pytest tests/ -v
+# Frontend (new terminal)
+cd frontend
+npm install
+npm run dev
+# Open http://localhost:3000
+
+# Tests (no API keys needed)
+cd backend && python -m pytest tests/ -v
 ```
 
 ### First Steps
@@ -304,10 +311,72 @@ finbot-financial-rag/
 │   ├── tests/                       # 90 tests (fully mocked)
 │   ├── experiments/                 # MLflow hyperparameter tuning
 │   └── requirements.txt
-├── frontend/
-│   └── index.html                   # Dark-themed SPA with SSE streaming
+├── frontend/                        # Next.js 14 + TypeScript + Tailwind
+│   ├── app/
+│   │   ├── layout.tsx               # Root layout (dark theme, providers)
+│   │   ├── page.tsx                 # Main chat page (protected)
+│   │   ├── login/page.tsx           # Login form
+│   │   └── signup/page.tsx          # Signup form
+│   ├── components/
+│   │   ├── ChatArea.tsx             # SSE streaming chat with real-time tokens
+│   │   ├── Sidebar.tsx              # Upload + documents + stats
+│   │   ├── Header.tsx               # Logo + user + stats + logout
+│   │   ├── MessageBubble.tsx        # Sources, confidence, intent badges
+│   │   ├── UploadZone.tsx           # Drag-and-drop file upload
+│   │   └── AuthForm.tsx             # Shared login/signup form
+│   ├── lib/
+│   │   ├── api.ts                   # Auth-aware fetch wrapper
+│   │   ├── auth.ts                  # JWT token management (localStorage)
+│   │   └── types.ts                 # TypeScript types matching backend schemas
+│   ├── hooks/
+│   │   ├── useAuth.ts               # Auth context (login/signup/logout/user)
+│   │   └── useStats.ts              # Stats polling (10s interval)
+│   └── legacy/index.html            # Original vanilla HTML (backup)
 ├── docker-compose.yml               # 4 services: backend + redis + postgres + nginx
 └── setup.sh                         # One-command Docker setup
+```
+
+---
+
+## Frontend (Next.js)
+
+Built with **Next.js 14**, **TypeScript**, and **Tailwind CSS** — same dark theme as the original, now with proper auth and component architecture.
+
+### Pages
+
+| Route | Purpose | Auth Required |
+|-------|---------|--------------|
+| `/` | Main chat — SSE streaming, upload, stats | Yes (redirects to /login) |
+| `/login` | Email + password login | No |
+| `/signup` | Username + email + password registration | No |
+
+### Auth Flow
+```
+App loads → check localStorage for JWT
+  → No token → check /health for auth_enabled
+    → Auth ON  → redirect to /login
+    → Auth OFF → show chat (dev mode)
+  → Has token → validate with GET /auth/me
+    → Valid   → show chat with user info
+    → Expired → clear token, redirect to /login
+```
+
+### Key Components
+
+| Component | What It Does |
+|-----------|-------------|
+| `ChatArea` | SSE streaming via `fetch()` + `ReadableStream` — tokens render in real-time |
+| `MessageBubble` | Renders sources, confidence badge, intent tag, response time, cache indicator |
+| `UploadZone` | Drag-and-drop PDF/TXT upload with progress feedback |
+| `Sidebar` | Document list + system stats (queries, cache rate, uptime) |
+| `Header` | Logo + live stats pills + username + logout button |
+| `useAuth` | React context for login/signup/logout + JWT management |
+
+### Run Frontend
+```bash
+cd frontend
+npm install
+npm run dev     # http://localhost:3000
 ```
 
 ---
@@ -350,10 +419,9 @@ Tests cover: all API endpoints, pipeline components, hallucination detector, DB 
 **Deep Patel** — Python Backend & GenAI Engineer
 
 [![GitHub](https://img.shields.io/badge/GitHub-PatelDeep223-181717?logo=github)](https://github.com/PatelDeep223)
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-0A66C2?logo=linkedin)](https://www.linkedin.com/in/deep-patel-a14848251/)
 
 ---
 
 <p align="center">
-  <sub>Built with FastAPI, LangChain, and a lot of financial document analysis.</sub>
+  <sub>Built with FastAPI, Next.js, LangChain, and a lot of financial document analysis.</sub>
 </p>
