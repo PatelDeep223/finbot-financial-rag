@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: #0a0f1e;
+  color: #e2e8f0;
+}
+
+/* Animated background */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 20% 50%, rgba(0,212,255,0.05) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 20%, rgba(124,58,237,0.05) 0%, transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.font-serif {
+  font-family: 'DM Serif Display', serif;
+}
+
+.font-mono {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Scrollbar */
+.scrollbar-thin::-webkit-scrollbar { width: 4px; }
+.scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+.scrollbar-thin::-webkit-scrollbar-thumb { background: #1e2d45; border-radius: 2px; }
+
+/* Animations */
+@keyframes slide-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes bounce-slow {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+.animate-slide-in {
+  animation: slide-in 0.3s ease;
+}
+
+.animate-bounce-slow {
+  animation: bounce-slow 3s ease-in-out infinite;
+}

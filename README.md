@@ -1,8 +1,52 @@
-# FinBot — Advanced Financial RAG System
+<h1 align="center">FinBot — Production Financial RAG System</h1>
 
-> Built by **Deep Patel** | Python Backend & GenAI Engineer
+<p align="center">
+  <strong>10-stage RAG pipeline with hybrid retrieval, cross-encoder reranking, and 4-layer anti-hallucination — built for real financial documents.</strong>
+</p>
 
-Production-grade Financial Document Q&A with **10-stage advanced RAG pipeline** — hybrid retrieval, cross-encoder reranking, anti-hallucination, semantic caching, and confidence scoring.
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.12-blue?logo=python" />
+  <img src="https://img.shields.io/badge/FastAPI-0.109-009688?logo=fastapi" />
+  <img src="https://img.shields.io/badge/OpenAI-GPT--3.5-412991?logo=openai" />
+  <img src="https://img.shields.io/badge/PostgreSQL-15-336791?logo=postgresql" />
+  <img src="https://img.shields.io/badge/Redis-7-DC382D?logo=redis" />
+  <img src="https://img.shields.io/badge/Tests-90%20passed-brightgreen" />
+</p>
+
+<p align="center">
+  <em><!-- Replace with your demo GIF --></em><br/>
+  <code>[ Demo GIF: Upload PDF → Ask question → Watch streaming answer with sources ]</code>
+</p>
+
+---
+
+## Performance at a Glance
+
+| Metric | Value |
+|--------|-------|
+| Cached response | **~15ms** |
+| Full pipeline (uncached) | **3-5 seconds** |
+| Cache hit rate | **40-60%** |
+| Reranker latency | **~200ms** (20 → 5 docs) |
+| Concurrent users | **10+** (fully async) |
+| Document support | **Up to 500 pages** |
+| Test suite | **90 tests**, 2 skipped, <2s runtime |
+| Pipeline stages | **10** (hybrid retrieval + reranking + anti-hallucination) |
+
+---
+
+## Why Naive RAG Fails for Finance
+
+Standard RAG pipelines (embed → retrieve → generate) **fail on financial documents** because:
+
+| Problem | What Happens | FinBot's Solution |
+|---------|-------------|-------------------|
+| **Exact number misses** | Vector search finds "revenue grew" but misses the exact "$4.2B" | **Hybrid BM25 + FAISS** — keyword search catches exact figures, vector search catches meaning |
+| **Irrelevant chunks ranked high** | FAISS returns 5 chunks, 2 are noise (disclaimers, headers) | **Cross-encoder reranker** — rescores 20 candidates, keeps only the 5 most relevant |
+| **Hallucinated figures** | LLM invents "$4.3B" when the real number is "$4.2B" | **4-layer anti-hallucination** — temperature=0 + strict prompts + phrase detection + source verification |
+| **Wrong query interpretation** | "EPS?" retrieves irrelevant earnings paragraphs | **Intent router + query rewriter** — classifies intent, rewrites vague queries for better retrieval |
+| **Slow repeat queries** | Same question hits the full pipeline every time | **Redis semantic cache** — 15ms for repeated queries vs 3-5s uncached |
+| **No accountability** | "Where did this answer come from?" | **Source citation** — every answer includes document name, page number, and relevance score |
 
 ---
 
@@ -12,124 +56,61 @@ Production-grade Financial Document Q&A with **10-stage advanced RAG pipeline** 
 User Question
       │
       ▼
-┌──────────────────┐
-│ 1. Semantic Cache │──── Redis / local fallback
-│    (Redis)        │     Cache HIT → instant response (~15ms)
-└────────┬─────────┘
-         │ Cache MISS
-         ▼
-┌──────────────────┐
-│ 2. Router Agent   │──── Intent classification
-│    (Rules + LLM)  │     factual | comparison | summary | off_topic
-└────────┬─────────┘
-         │
-         ▼
-┌──────────────────┐
-│ 3. Query Rewriter │──── LLM rewrites complex queries
-│    (GPT-3.5)      │     Skips short/clear queries (≤6 words)
-└────────┬─────────┘
-         │
-         ▼
-┌──────────────────┐
-│ 4. Hybrid Search  │──── BM25 (keyword) + FAISS (vector)
-│    BM25 ∥ FAISS   │     Run in parallel, merge with RRF
-│    + RRF Fusion   │     → Top-20 candidates
-└────────┬─────────┘
-         │
-         ▼
-┌──────────────────┐
-│ 5. Reranker       │──── Cross-encoder (ms-marco-MiniLM-L-6-v2)
-│    (Cross-Encoder)│     Rescores 20 → Top-5 most relevant
-└────────┬─────────┘
-         │
-         ▼
-┌──────────────────┐
-│ 6. Context Builder│──── Deduplicate + sort by score
-│                   │     Trim to 3000 token limit
-└────────┬─────────┘
-         │
-         ▼
-┌──────────────────┐
-│ 7. LLM Generation │──── GPT-3.5 (temperature=0)
-│    (OpenAI)       │     Strict financial prompt
-└────────┬─────────┘
-         │
-         ▼
-┌──────────────────┐
-│ 8. Hallucination  │──── Confidence scoring (0.0-1.0)
-│    Detector       │     Uncertainty phrase detection
-└────────┬─────────┘
-         │
-         ▼
-┌──────────────────┐
-│ 9. Cache + DB Log │──── Redis cache + PostgreSQL logging
-│                   │     Fire-and-forget, never blocks response
-└────────┬─────────┘
-         │
-         ▼
+┌──────────────────────┐
+│  1. Semantic Cache    │──── Redis (hit? → 15ms response)
+│     (Redis)           │     local dict fallback if Redis down
+└──────────┬───────────┘
+           │ Cache MISS
+           ▼
+┌──────────────────────┐
+│  2. Router Agent      │──── Intent: factual | comparison | summary | risk | off_topic
+│     (Rules + LLM)     │     off_topic → instant rejection
+└──────────┬───────────┘
+           │
+           ▼
+┌──────────────────────┐
+│  3. Query Rewriter    │──── LLM rewrites complex queries (skips short ones)
+│     (GPT-3.5)         │     "profit?" → "net profit in Q3 2024 earnings report"
+└──────────┬───────────┘
+           │
+           ▼
+┌──────────────────────┐
+│  4. Hybrid Search     │──── BM25 (keyword) ∥ FAISS (vector) — run in PARALLEL
+│     BM25 ∥ FAISS      │     Reciprocal Rank Fusion (k=60) → top-20 candidates
+└──────────┬───────────┘
+           │
+           ▼
+┌──────────────────────┐
+│  5. Cross-Encoder     │──── ms-marco-MiniLM-L-6-v2 rescores relevance
+│     Reranker          │     20 candidates → top-5 most relevant
+└──────────┬───────────┘
+           │
+           ▼
+┌──────────────────────┐
+│  6. Context Builder   │──── Deduplicate by hash, sort by score, trim to 3000 tokens
+└──────────┬───────────┘
+           │
+           ▼
+┌──────────────────────┐
+│  7. LLM Generation    │──── GPT-3.5 (temp=0) with intent-specific prompts
+│     + Streaming SSE   │     Real-time token streaming via Server-Sent Events
+└──────────┬───────────┘
+           │
+           ▼
+┌──────────────────────┐
+│  8. Hallucination     │──── 4 layers: temp=0 + strict prompt + phrase detection
+│     Detection         │     + source verification → confidence score (0.0-1.0)
+└──────────┬───────────┘
+           │
+           ▼
+┌──────────────────────┐
+│  9. Cache + DB Log    │──── Redis cache (1hr TTL) + PostgreSQL query logging
+│     (fire-and-forget) │     Non-blocking — never slows down the response
+└──────────┬───────────┘
+           │
+           ▼
    Answer + Sources + Confidence + Intent
-```
-
----
-
-## Key Features
-
-| Feature | Implementation | Impact |
-|---------|---------------|--------|
-| **Hybrid Retrieval** | BM25 + FAISS + Reciprocal Rank Fusion | Catches both keyword and semantic matches |
-| **Cross-Encoder Reranking** | ms-marco-MiniLM-L-6-v2 | 20 candidates → 5 most relevant docs |
-| **Router Agent** | Rule-based + LLM fallback | Routes off-topic queries, adapts strategy per intent |
-| **Anti-Hallucination** | temperature=0 + strict prompts + confidence scoring | Never fabricates financial data |
-| **Semantic Caching** | Redis with MD5 hash keys | ~15ms cached responses vs ~3s uncached |
-| **Query Rewriting** | LLM pre-processing (complex queries only) | Better retrieval without over-rewriting |
-| **Context Builder** | Dedup + score sort + token trimming | Clean, relevant context for LLM |
-| **PostgreSQL Logging** | Async fire-and-forget to Railway DB | Query logs, conversations, document metadata |
-| **Graceful Fallbacks** | Redis → local dict, DB → silent skip | App never crashes from infra failures |
-| **Source Citation** | Document + page metadata tracking | Every answer is verifiable |
-
----
-
-## Project Structure
-
-```
-finbot-financial-rag/
-├── backend/
-│   ├── app/
-│   │   ├── api/
-│   │   │   └── routes.py              # 7 API endpoints
-│   │   ├── core/
-│   │   │   └── config.py              # Pydantic settings (env-based)
-│   │   ├── db/
-│   │   │   ├── __init__.py            # Async SQLAlchemy engine + session
-│   │   │   └── service.py             # DB operations (graceful fallback)
-│   │   ├── models/
-│   │   │   ├── schemas.py             # Pydantic request/response models
-│   │   │   └── database.py            # SQLAlchemy ORM (Document, Conversation, QueryLog)
-│   │   ├── rag/
-│   │   │   └── pipeline.py            # Main 10-stage RAG orchestrator
-│   │   └── services/                  # Modular RAG components
-│   │       ├── router.py              # Intent classification
-│   │       ├── rewriter.py            # Query expansion
-│   │       ├── hybrid_retriever.py    # BM25 + FAISS + RRF fusion
-│   │       ├── reranker.py            # Cross-encoder re-scoring
-│   │       └── context_builder.py     # Dedup, sort, trim
-│   ├── tests/                         # 80 tests (pytest)
-│   │   ├── conftest.py                # Fixtures + mocks (no real API/DB needed)
-│   │   ├── test_services.py           # Router, rewriter, retriever, reranker, context
-│   │   ├── test_query.py              # Query endpoint (11 tests)
-│   │   ├── test_pipeline_unit.py      # HallucinationDetector + demo responses
-│   │   ├── test_db_service.py         # DB graceful fallback tests
-│   │   └── ...                        # Upload, stats, documents, history, schemas, health
-│   ├── requirements.txt
-│   ├── Dockerfile
-│   └── .env.example
-├── frontend/
-│   └── index.html                     # Single-page app (vanilla JS, dark theme)
-├── docker/
-│   └── nginx.conf                     # Reverse proxy config
-├── docker-compose.yml                 # 4-service orchestration
-├── setup.sh                           # One-command Docker setup
-└── .gitignore
+   (streamed token-by-token to the browser)
 ```
 
 ---
@@ -137,15 +118,18 @@ finbot-financial-rag/
 ## Tech Stack
 
 ```
-Backend:      Python 3.12 · FastAPI · Async/Await
-AI/ML:        LangChain · OpenAI GPT-3.5 · OpenAI Embeddings
-Retrieval:    FAISS (vector) + BM25 (keyword) + Reciprocal Rank Fusion
-Reranking:    sentence-transformers · cross-encoder/ms-marco-MiniLM-L-6-v2
-Cache:        Redis (semantic caching with local fallback)
-Database:     PostgreSQL (Railway) · SQLAlchemy 2.0 async
-Frontend:     Vanilla HTML/CSS/JS (zero dependencies)
-Deploy:       Docker · Docker Compose · Nginx
-Testing:      pytest (80 tests, fully mocked)
+Backend       Python 3.12 · FastAPI · Uvicorn · Pydantic 2.5
+LLM           LangChain · OpenAI GPT-3.5-turbo · text-embedding-3-small
+Retrieval     FAISS (vector) + BM25 (keyword) + Reciprocal Rank Fusion
+Reranking     sentence-transformers · cross-encoder/ms-marco-MiniLM-L-6-v2
+Cache         Redis 7 (semantic cache, 1hr TTL, local dict fallback)
+Database      PostgreSQL 15 · SQLAlchemy 2.0 async · asyncpg
+Auth          JWT (PyJWT) · bcrypt · rate limiting (slowapi)
+Evaluation    Custom RAGAS (4 metrics) · MLflow experiment tracking
+Observability LangSmith (optional) · structured logging
+Frontend      Vanilla HTML/CSS/JS · SSE streaming · dark theme
+Deployment    Docker · Docker Compose · Nginx reverse proxy
+Testing       pytest (90 tests, fully mocked, <2s)
 ```
 
 ---
@@ -158,174 +142,173 @@ git clone https://github.com/PatelDeep223/finbot-financial-rag
 cd finbot-financial-rag
 chmod +x setup.sh
 ./setup.sh YOUR_OPENAI_API_KEY
+# Open http://localhost:3000
 ```
-Open http://localhost:3000
 
 ### Manual Setup
 ```bash
-# Backend
 cd backend
-python -m venv venv
-source venv/bin/activate
+python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env        # Edit with your OpenAI API key + DB URL
+cp .env.example .env   # add your OpenAI API key
 
-# Start (Redis optional — falls back to local cache)
+# Start server (Redis optional — falls back to local cache)
 uvicorn app.main:app --host 0.0.0.0 --port 8000
 
-# Frontend — open frontend/index.html in browser
+# Run tests (no API keys needed)
+python -m pytest tests/ -v
 ```
 
-### Run Tests
+### First Steps
 ```bash
-cd backend
-source venv/bin/activate
-python -m pytest tests/ -v    # 80 tests, no API keys needed
+# 1. Sign up
+curl -X POST localhost:8000/api/v1/auth/signup \
+  -H "Content-Type: application/json" \
+  -d '{"username":"deep","email":"deep@test.com","password":"mypass123"}'
+
+# 2. Upload a financial PDF
+curl -X POST localhost:8000/api/v1/upload \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -F "file=@earnings_report.pdf"
+
+# 3. Ask a question
+curl -X POST localhost:8000/api/v1/query \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"question": "What was the Q3 revenue?"}'
 ```
 
 ---
 
 ## API Endpoints
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/v1/query` | Ask a question (main RAG pipeline) |
-| `POST` | `/api/v1/upload` | Upload financial document (PDF/TXT) |
-| `GET` | `/api/v1/stats` | System statistics + DB totals |
-| `GET` | `/api/v1/documents` | List ingested documents |
-| `GET` | `/api/v1/history/{session_id}` | Conversation history |
-| `DELETE` | `/api/v1/history/{session_id}` | Clear conversation |
-| `GET` | `/health` | Health check |
-| `GET` | `/docs` | Swagger UI (auto-generated) |
+| Method | Endpoint | Auth | Rate Limit | Description |
+|--------|----------|------|------------|-------------|
+| `POST` | `/api/v1/auth/signup` | No | - | Register (returns JWT) |
+| `POST` | `/api/v1/auth/login` | No | - | Login (returns JWT) |
+| `GET` | `/api/v1/auth/me` | JWT | 30/min | Current user info |
+| `POST` | `/api/v1/query` | JWT | 10/min | Ask a question (full response) |
+| `POST` | `/api/v1/query/stream` | JWT | 10/min | Ask a question (streaming SSE) |
+| `POST` | `/api/v1/upload` | JWT | 5/min | Upload PDF or TXT |
+| `GET` | `/api/v1/stats` | JWT | 30/min | System statistics |
+| `GET` | `/api/v1/documents` | JWT | 30/min | List uploaded documents |
+| `GET` | `/api/v1/history/{id}` | JWT | 30/min | Conversation history |
+| `DELETE` | `/api/v1/history/{id}` | JWT | 30/min | Clear conversation |
+| `POST` | `/api/v1/evaluate` | JWT | 3/min | RAGAS evaluation (4 metrics) |
+| `GET` | `/health` | No | - | Health check |
 
-### Example Request
-```bash
-curl -X POST http://localhost:8000/api/v1/query \
-  -H "Content-Type: application/json" \
-  -d '{"question": "What is the Q3 revenue?", "user_id": "analyst_1", "session_id": "sess_001"}'
-```
-
-### Example Response
-```json
-{
-  "answer": "According to the Q3 2024 Earnings Report, total revenue was $4.20 billion, representing 14.9% year-over-year growth.",
-  "sources": [
-    {
-      "content": "Q3 2024 revenue reached $4.2 billion...",
-      "source": "NovaTech_Q3_2024_Earnings.pdf",
-      "page": 1,
-      "score": 0.8934
-    }
-  ],
-  "confident": true,
-  "confidence_score": 0.92,
-  "from_cache": false,
-  "query_rewritten": null,
-  "intent": "factual",
-  "response_time_ms": 2341.5
-}
-```
+**Auth:** JWT auto-disabled until first user signs up (dev mode).
 
 ---
 
-## Advanced RAG Techniques
+## How the Advanced RAG Works
 
-### 1. Hybrid Retrieval (BM25 + FAISS + RRF)
+### Hybrid Retrieval (BM25 + FAISS + RRF)
 ```
 Query: "EPS $2.15"
 
-BM25 (keyword):   Finds exact "$2.15" string match
-FAISS (vector):   Finds semantically similar "earnings per share" chunks
-RRF Fusion:       Merges both ranked lists → best of both worlds
-                   score = Σ 1/(k + rank)  where k=60
+BM25 (keyword):  Finds exact "$2.15" string match       → ranked list A
+FAISS (vector):  Finds "earnings per share" semantically → ranked list B
+
+Reciprocal Rank Fusion:
+  score(doc) = Σ 1/(k + rank) across both lists, k=60
+  → Documents appearing in BOTH lists score highest
+  → Output: top-20 candidates (best of both worlds)
 ```
 
-### 2. Cross-Encoder Reranking
+### Cross-Encoder Reranking
 ```
 Input:  20 candidates from hybrid search
-Model:  ms-marco-MiniLM-L-6-v2 (fast, accurate)
-Output: Top-5 documents re-scored by true relevance
-Why:    FAISS is fast but approximate; reranker is slow but precise
+Model:  ms-marco-MiniLM-L-6-v2 (86ms/pair on CPU)
+Method: Score each (query, document) pair independently
+Output: Top-5 documents sorted by true relevance
+
+Why: FAISS retrieval is fast but approximate.
+     Reranker is slower but far more precise.
 ```
 
-### 3. Router Agent (Intent Detection)
+### Anti-Hallucination (4 Layers)
 ```
-"What is revenue?"          → factual   (direct lookup)
-"Compare Q3 vs Q2"         → comparison (multi-doc analysis)
-"Summarize the report"     → summary   (broad overview)
-"Hello"                    → off_topic (instant rejection)
+Layer 1: temperature=0           → deterministic, no creative output
+Layer 2: Strict financial prompts → "ONLY use provided context, never fabricate"
+Layer 3: Uncertainty detection    → "I think", "probably" → lower confidence
+Layer 4: Source verification      → no sources cited = -0.4 confidence penalty
+
+Result: confidence_score (0.0-1.0) on every response
 ```
 
-### 4. Anti-Hallucination (4 Layers)
+### Intent-Specific Prompts
 ```
-Layer 1: temperature=0              → deterministic output
-Layer 2: Strict prompt              → "ONLY use context, never fabricate"
-Layer 3: Uncertainty phrase detection → "I think", "probably" → lower score
-Layer 4: Source verification         → no sources = -0.4 confidence
-```
-
-### 5. Context Builder
-```
-Input:  5 reranked documents (may have overlapping content)
-Step 1: Deduplicate by content hash
-Step 2: Sort by rerank_score → rrf_score
-Step 3: Trim to 3000 token limit
-Output: Clean, relevant context string for LLM
+"What is revenue?"              → factual   → strict data extraction prompt
+"Compare Q3 vs Q2"             → comparison → side-by-side analysis prompt
+"Summarize the report"         → summary    → key metrics + outlook prompt
+"What are the risk factors?"   → risk       → structured risk analysis prompt
+"Hello"                        → off_topic  → instant rejection (no LLM call)
 ```
 
 ---
 
-## Database Schema (PostgreSQL)
+## Embedding Model Comparison
 
-### documents
-| Column | Type | Description |
-|--------|------|-------------|
-| id | int | Primary key |
-| filename | varchar(500) | Indexed |
-| file_size_bytes | bigint | |
-| chunks_created | int | |
-| uploaded_at | timestamp | Auto-set |
+| Metric | text-embedding-ada-002 | text-embedding-3-small | text-embedding-3-large |
+|--------|----------------------|----------------------|----------------------|
+| **Cost** | $0.10 / 1M tokens | $0.02 / 1M tokens | $0.13 / 1M tokens |
+| **Cost vs ada-002** | baseline | **5x cheaper** | 1.3x more |
+| **MTEB Score** | 61.0 | 62.3 | 64.6 |
+| **MIRACL Avg** | 31.4 | 44.0 | 54.9 |
+| **Dimensions** | 1536 (fixed) | 1536 (adjustable) | 3072 (adjustable) |
+| **Best For** | Legacy | **Cost-optimized RAG** | Max accuracy |
 
-### conversations
-| Column | Type | Description |
-|--------|------|-------------|
-| id | int | Primary key |
-| session_id | varchar(255) | Indexed |
-| role | varchar(20) | "user" / "assistant" |
-| content | text | |
-| confident | bool | Nullable |
-| confidence_score | float | Nullable |
-| sources | json | Nullable |
-| created_at | timestamp | Indexed |
-
-### query_logs
-| Column | Type | Description |
-|--------|------|-------------|
-| id | int | Primary key |
-| question | text | |
-| rewritten_query | text | Nullable |
-| answer | text | |
-| confidence_score | float | |
-| confident | bool | |
-| from_cache | bool | |
-| response_time_ms | float | |
-| user_id | varchar(255) | Indexed |
-| session_id | varchar(255) | Nullable, indexed |
-| created_at | timestamp | |
+FinBot uses **text-embedding-3-small** — 5x cheaper with better quality.
 
 ---
 
-## Performance
+## Database Schema
 
-| Metric | Value |
-|--------|-------|
-| Response time (cached) | ~15ms |
-| Response time (full pipeline) | ~3-5s |
-| Cache hit rate (typical) | 40-60% |
-| Reranker latency | ~200ms for 20 docs |
-| Test suite | 80 tests in ~1s |
-| Supported document size | Up to 500 pages |
-| Concurrent requests | 10+ (fully async) |
+| Table | Purpose | Key Columns |
+|-------|---------|-------------|
+| `users` | Authentication | username, email, hashed_password, is_active |
+| `documents` | Upload tracking | filename, file_size_bytes, chunks_created |
+| `conversations` | Chat history | session_id, role, content, confidence, sources (JSON) |
+| `query_logs` | Analytics | question, answer, confidence, from_cache, response_time_ms |
+
+---
+
+## Project Structure
+
+```
+finbot-financial-rag/
+├── backend/
+│   ├── app/
+│   │   ├── api/
+│   │   │   ├── routes.py            # 8 endpoints (query, stream, upload, stats, docs, history, evaluate)
+│   │   │   └── auth.py              # 3 endpoints (signup, login, me)
+│   │   ├── core/
+│   │   │   ├── config.py            # 27 settings via Pydantic
+│   │   │   └── security.py          # JWT + bcrypt + rate limiting
+│   │   ├── db/
+│   │   │   ├── __init__.py          # Async SQLAlchemy engine
+│   │   │   └── service.py           # 12 DB operations with graceful fallback
+│   │   ├── models/
+│   │   │   ├── schemas.py           # 14 Pydantic request/response models
+│   │   │   └── database.py          # 4 ORM models (User, Document, Conversation, QueryLog)
+│   │   ├── rag/
+│   │   │   └── pipeline.py          # 10-stage RAG pipeline + streaming
+│   │   └── services/
+│   │       ├── router.py            # Intent classification (5 types)
+│   │       ├── rewriter.py          # Query expansion
+│   │       ├── hybrid_retriever.py  # BM25 + FAISS + RRF
+│   │       ├── reranker.py          # Cross-encoder (ms-marco)
+│   │       ├── context_builder.py   # Dedup + sort + trim
+│   │       └── evaluator.py         # RAGAS evaluation (4 metrics)
+│   ├── tests/                       # 90 tests (fully mocked)
+│   ├── experiments/                 # MLflow hyperparameter tuning
+│   └── requirements.txt
+├── frontend/
+│   └── index.html                   # Dark-themed SPA with SSE streaming
+├── docker-compose.yml               # 4 services: backend + redis + postgres + nginx
+└── setup.sh                         # One-command Docker setup
+```
 
 ---
 
@@ -335,23 +318,42 @@ Output: Clean, relevant context string for LLM
 # Required
 OPENAI_API_KEY=your-key-here
 
-# Optional (all have defaults)
+# Optional (all have sensible defaults)
 OPENAI_MODEL=gpt-3.5-turbo
-EMBEDDING_MODEL=text-embedding-ada-002
+EMBEDDING_MODEL=text-embedding-3-small
 REDIS_URL=redis://localhost:6379
 DATABASE_URL=postgresql+asyncpg://user:pass@host:5432/db
+JWT_SECRET=your-secret-here
 CHUNK_SIZE=500
-CHUNK_OVERLAP=50
 TOP_K_RESULTS=5
 TOP_K_RETRIEVAL=20
-TEMPERATURE=0.0
 MAX_CONTEXT_TOKENS=3000
 RERANKER_MODEL=cross-encoder/ms-marco-MiniLM-L-6-v2
+LANGCHAIN_TRACING_V2=false
 ```
 
 ---
 
-## Author
+## Running Tests
+
+```bash
+cd backend && source venv/bin/activate
+python -m pytest tests/ -v    # 90 tests, no API keys needed, <2s
+```
+
+Tests cover: all API endpoints, pipeline components, hallucination detector, DB graceful fallback, auth (signup/login/JWT), Pydantic schemas, all 5 RAG services, and RAGAS evaluation.
+
+---
+
+## Connect
 
 **Deep Patel** — Python Backend & GenAI Engineer
-- [GitHub](https://github.com/PatelDeep223)
+
+[![GitHub](https://img.shields.io/badge/GitHub-PatelDeep223-181717?logo=github)](https://github.com/PatelDeep223)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-0A66C2?logo=linkedin)](https://www.linkedin.com/in/deep-patel-a14848251/)
+
+---
+
+<p align="center">
+  <sub>Built with FastAPI, LangChain, and a lot of financial document analysis.</sub>
+</p>

@@ -784,7 +784,7 @@
     sendQuery();
   }
 
-  // ── SEND QUERY ──
+  // ── SEND QUERY (STREAMING) ──
   async function sendQuery() {
     const input = document.getElementById('query-input');
     const question = input.value.trim();
@@ -802,11 +802,31 @@
     // Add user message
     addMessage('user', question);
 
-    // Add typing indicator
-    const typingId = addTyping();
+    // Create streaming bot message bubble
+    const msgs = document.getElementById('messages');
+    const botDiv = document.createElement('div');
+    botDiv.className = 'message bot';
+    botDiv.innerHTML = `
+      <div class="avatar bot">🤖</div>
+      <div class="bubble">
+        <div class="rewrite-notice" id="stream-rewrite" style="display:none"></div>
+        <div class="bubble-text" id="stream-text"></div>
+        <div class="sources" id="stream-sources" style="display:none"></div>
+        <div class="confidence-bar" id="stream-meta" style="display:none"></div>
+      </div>
+    `;
+    msgs.appendChild(botDiv);
+    msgs.scrollTop = msgs.scrollHeight;
+
+    const streamText = document.getElementById('stream-text');
+    const streamRewrite = document.getElementById('stream-rewrite');
+    const streamSources = document.getElementById('stream-sources');
+    const streamMeta = document.getElementById('stream-meta');
+
+    let fullText = '';
 
     try {
-      const res = await fetch(`${API}/query`, {
+      const res = await fetch(`${API}/query/stream`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -816,19 +836,106 @@
         })
       });
 
-      const data = await res.json();
-      removeTyping(typingId);
-
-      if (res.ok) {
-        addBotMessage(data);
-        updateStats();
-      } else {
-        addMessage('bot', '❌ Error: ' + (data.detail || 'Something went wrong'));
+      if (!res.ok) {
+        const err = await res.json();
+        streamText.textContent = '❌ Error: ' + (err.detail || 'Something went wrong');
+        isLoading = false;
+        document.getElementById('send-btn').disabled = false;
+        return;
       }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop(); // keep incomplete line in buffer
+
+        let eventType = '';
+        for (const line of lines) {
+          if (line.startsWith('event: ')) {
+            eventType = line.slice(7).trim();
+          } else if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+
+            if (eventType === 'token') {
+              try {
+                const parsed = JSON.parse(data);
+                fullText += parsed.token;
+                streamText.innerHTML = formatAnswer(escapeHtml(fullText));
+                msgs.scrollTop = msgs.scrollHeight;
+              } catch(e) {}
+            }
+
+            else if (eventType === 'meta') {
+              try {
+                const meta = JSON.parse(data);
+                if (meta.query_rewritten) {
+                  streamRewrite.style.display = 'flex';
+                  streamRewrite.innerHTML = `🔄 Query optimized: "${escapeHtml(meta.query_rewritten)}"`;
+                }
+                if (meta.from_cache) {
+                  streamRewrite.style.display = 'flex';
+                  streamRewrite.innerHTML = '⚡ Serving from cache';
+                }
+                // Store intent for later
+                botDiv.dataset.intent = meta.intent || '';
+              } catch(e) {}
+            }
+
+            else if (eventType === 'sources') {
+              try {
+                const srcData = JSON.parse(data);
+
+                // Render sources
+                if (srcData.sources && srcData.sources.length > 0) {
+                  streamSources.style.display = 'block';
+                  const items = srcData.sources.map(s => {
+                    const scorePart = s.score ? ` · Score ${s.score.toFixed(2)}` : '';
+                    return `<div class="source-item"><div class="source-name">📄 ${escapeHtml(s.source)}${s.page ? ' · Page ' + s.page : ''}${scorePart}</div><div class="source-content">${escapeHtml(s.content)}</div></div>`;
+                  }).join('');
+                  streamSources.innerHTML = `<div class="sources-title">Sources</div>${items}`;
+                }
+
+                // Render confidence bar
+                const confClass = srcData.confident ? 'conf-high' : 'conf-low';
+                const confIcon = srcData.confident ? '✅' : '⚠️';
+                const confText = `${confIcon} ${Math.round(srcData.confidence_score * 100)}% confident`;
+                const intent = botDiv.dataset.intent || '';
+                const intentIcons = { factual: '🔍', comparison: '⚖️', summary: '📋', risk: '⚠️', off_topic: '🚫' };
+                const intentHtml = intent ? `<span class="intent-badge">${intentIcons[intent] || '🔍'} ${intent}</span>` : '';
+
+                streamMeta.style.display = 'flex';
+                streamMeta.innerHTML = `
+                  <span class="conf-badge ${confClass}">${confText}</span>
+                  ${intentHtml}
+                  <span class="response-time">${srcData.response_time_ms}ms</span>
+                `;
+              } catch(e) {}
+            }
+
+            else if (eventType === 'done') {
+              // Stream complete
+              updateStats();
+            }
+          }
+        }
+      }
+
     } catch (err) {
-      removeTyping(typingId);
-      addMessage('bot', '❌ Cannot connect to FinBot API. Make sure the backend is running on port 8000.');
+      streamText.textContent = '❌ Cannot connect to FinBot API. Make sure the backend is running on port 8000.';
     }
+
+    // Remove temporary IDs so they don't conflict with future messages
+    streamText.removeAttribute('id');
+    streamRewrite.removeAttribute('id');
+    streamSources.removeAttribute('id');
+    streamMeta.removeAttribute('id');
 
     isLoading = false;
     document.getElementById('send-btn').disabled = false;

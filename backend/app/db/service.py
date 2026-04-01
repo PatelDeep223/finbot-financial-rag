@@ -3,7 +3,7 @@
 from typing import Optional, List
 from sqlalchemy import select, delete, func
 from app.db import async_session_factory
-from app.models.database import Document, Conversation, QueryLog
+from app.models.database import Document, Conversation, QueryLog, User
 
 
 async def save_document_record(filename: str, file_size_bytes: int, chunks_created: int):
@@ -141,3 +141,51 @@ async def get_total_cache_hits() -> Optional[int]:
             return result.scalar()
     except Exception:
         return None
+
+
+# ─── USER CRUD ───────────────────────────────────────────────────────────────
+
+async def create_user(username: str, email: str, hashed_password: str) -> Optional[User]:
+    try:
+        async with async_session_factory() as session:
+            user = User(username=username, email=email, hashed_password=hashed_password)
+            session.add(user)
+            await session.commit()
+            await session.refresh(user)
+            return user
+    except Exception as e:
+        print(f"⚠️ DB: Failed to create user: {e}")
+        return None
+
+
+async def get_user_by_email(email: str) -> Optional[User]:
+    try:
+        async with async_session_factory() as session:
+            result = await session.execute(
+                select(User).where(User.email == email)
+            )
+            return result.scalar_one_or_none()
+    except Exception as e:
+        print(f"⚠️ DB: Failed to get user by email: {e}")
+        return None
+
+
+async def get_user_by_id(user_id: int) -> Optional[User]:
+    try:
+        async with async_session_factory() as session:
+            result = await session.execute(
+                select(User).where(User.id == user_id)
+            )
+            return result.scalar_one_or_none()
+    except Exception as e:
+        print(f"⚠️ DB: Failed to get user by id: {e}")
+        return None
+
+
+async def user_count() -> int:
+    try:
+        async with async_session_factory() as session:
+            result = await session.execute(select(func.count(User.id)))
+            return result.scalar() or 0
+    except Exception:
+        return 0

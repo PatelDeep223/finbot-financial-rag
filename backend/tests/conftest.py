@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 mock_settings = MagicMock()
 mock_settings.OPENAI_API_KEY = "sk-test-fake-key"
 mock_settings.OPENAI_MODEL = "gpt-3.5-turbo"
-mock_settings.EMBEDDING_MODEL = "text-embedding-ada-002"
+mock_settings.EMBEDDING_MODEL = "text-embedding-3-small"
 mock_settings.REDIS_URL = "redis://localhost:9999"
 mock_settings.CACHE_TTL = 3600
 mock_settings.DATABASE_URL = "postgresql+asyncpg://test:test@localhost:5432/test"
@@ -26,8 +26,13 @@ mock_settings.MAX_CONTEXT_TOKENS = 3000
 mock_settings.RERANKER_MODEL = "cross-encoder/ms-marco-MiniLM-L-6-v2"
 mock_settings.VECTOR_STORE_PATH = "./data/vectorstore"
 mock_settings.DOCUMENTS_PATH = tempfile.mkdtemp()
+mock_settings.LANGCHAIN_TRACING_V2 = "false"
+mock_settings.LANGCHAIN_API_KEY = None
+mock_settings.LANGCHAIN_PROJECT = "finbot-test"
+mock_settings.LANGCHAIN_ENDPOINT = "https://api.smith.langchain.com"
+mock_settings.JWT_SECRET = "test-secret-key-that-is-at-least-32-bytes-long"
 
-# Mock DB service
+# Mock DB service — user_count=0 means dev mode (no auth)
 mock_db_service = MagicMock()
 mock_db_service.get_conversation_history = AsyncMock(return_value=None)
 mock_db_service.delete_conversation_history = AsyncMock()
@@ -37,6 +42,10 @@ mock_db_service.get_total_cache_hits = AsyncMock(return_value=None)
 mock_db_service.log_query = AsyncMock()
 mock_db_service.save_conversation_message = AsyncMock()
 mock_db_service.save_document_record = AsyncMock()
+mock_db_service.create_user = AsyncMock(return_value=None)
+mock_db_service.get_user_by_email = AsyncMock(return_value=None)
+mock_db_service.get_user_by_id = AsyncMock(return_value=None)
+mock_db_service.user_count = AsyncMock(return_value=0)  # dev mode
 
 # Mock DB module-level objects
 mock_async_engine = MagicMock()
@@ -55,9 +64,13 @@ with patch("app.core.config.settings", mock_settings), \
      patch.dict("sys.modules", {"app.db.service": mock_db_service}), \
      patch("app.db.async_engine", mock_async_engine), \
      patch("app.db.init_db", mock_init_db), \
-     patch("app.db.async_session_factory", MagicMock()):
+     patch("app.db.async_session_factory", MagicMock()), \
+     patch("app.core.security.settings", mock_settings):
     from app.rag.pipeline import FinancialRAGPipeline, pipeline
     from app.main import app
+    # Disable rate limiting in tests
+    from app.core.security import limiter
+    limiter.enabled = False
 
 from fastapi.testclient import TestClient
 
@@ -160,4 +173,6 @@ def reset_pipeline_state():
         "start_time": __import__("time").time(),
     }
     pipeline.conversation_history = {}
-    yield
+    # Ensure dev mode (no auth) for all tests by default
+    with patch("app.db.service.user_count", new_callable=AsyncMock, return_value=0):
+        yield

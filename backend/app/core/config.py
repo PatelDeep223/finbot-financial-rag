@@ -5,7 +5,7 @@ class Settings(BaseSettings):
     # OpenAI
     OPENAI_API_KEY: str = "your-openai-api-key"
     OPENAI_MODEL: str = "gpt-3.5-turbo"
-    EMBEDDING_MODEL: str = "text-embedding-ada-002"
+    EMBEDDING_MODEL: str = "text-embedding-3-small"
 
     # Redis
     REDIS_URL: str = "redis://localhost:6379"
@@ -29,6 +29,15 @@ class Settings(BaseSettings):
     # Paths
     VECTOR_STORE_PATH: str = "./data/vectorstore"
     DOCUMENTS_PATH: str = "./data/documents"
+
+    # Security (dev mode: auth skipped when no users in DB)
+    JWT_SECRET: str = "finbot-super-secret-change-in-production"
+
+    # LangSmith (Observability)
+    LANGCHAIN_TRACING_V2: str = "false"
+    LANGCHAIN_API_KEY: Optional[str] = None
+    LANGCHAIN_PROJECT: str = "finbot-rag"
+    LANGCHAIN_ENDPOINT: str = "https://api.smith.langchain.com"
 
     class Config:
         env_file = ".env"

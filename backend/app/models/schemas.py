@@ -1,6 +1,37 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime
+
+
+# ─── AUTH SCHEMAS ────────────────────────────────────────────────────────────
+
+class SignupRequest(BaseModel):
+    username: str = Field(..., min_length=3, max_length=50)
+    email: str = Field(..., min_length=5, max_length=255)
+    password: str = Field(..., min_length=6, max_length=128)
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+class UserResponse(BaseModel):
+    id: int
+    username: str
+    email: str
+    is_active: bool
+    created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    expires_in: int = 3600
+    user: UserResponse
+
+
+# ─── RAG SCHEMAS ─────────────────────────────────────────────────────────────
 
 class QueryRequest(BaseModel):
     question: str
@@ -41,6 +72,37 @@ class ConversationHistory(BaseModel):
     session_id: str
     messages: List[ChatMessage]
     created_at: datetime = datetime.now()
+
+class EvaluationSample(BaseModel):
+    question: str
+    answer: str
+    contexts: List[str]
+    ground_truth: str
+
+class EvaluationRequest(BaseModel):
+    samples: List[EvaluationSample]
+
+class SampleScore(BaseModel):
+    question: str
+    faithfulness: float
+    faithfulness_reason: str = ""
+    answer_relevancy: float
+    answer_relevancy_reason: str = ""
+    context_precision: float
+    context_precision_reason: str = ""
+    context_recall: float
+    context_recall_reason: str = ""
+
+class AverageScores(BaseModel):
+    faithfulness: float
+    answer_relevancy: float
+    context_precision: float
+    context_recall: float
+
+class EvaluationResponse(BaseModel):
+    num_samples: int
+    average_scores: AverageScores
+    per_sample: List[SampleScore]
 
 class SystemStats(BaseModel):
     total_queries: int

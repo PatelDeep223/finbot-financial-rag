@@ -485,6 +485,140 @@ class FinancialRAGPipeline:
 
         return response
 
+    # ─── STREAMING QUERY ──────────────────────────────────────────────────
+
+    async def query_stream(
+        self,
+        question: str,
+        user_id: str = "anonymous",
+        session_id: Optional[str] = None,
+    ):
+        """
+        Streaming version of query(). Yields SSE events:
+          event: meta     → {intent, query_rewritten}
+          event: token    → {token: "..."}
+          event: sources  → {sources, confident, confidence_score, response_time_ms}
+          event: done     → [DONE]
+        """
+        import json as _json
+        start_time = time.time()
+        self.stats["total_queries"] += 1
+
+        # No vectorstore → demo
+        if self.vectorstore is None:
+            demo = self._demo_response(question, start_time)
+            yield f"event: token\ndata: {_json.dumps({'token': demo['answer']})}\n\n"
+            yield f"event: sources\ndata: {_json.dumps({'sources': [], 'confident': True, 'confidence_score': 1.0, 'response_time_ms': demo['response_time_ms']})}\n\n"
+            yield "event: done\ndata: [DONE]\n\n"
+            return
+
+        # Step 1: Cache check
+        cache_key = self.cache.make_cache_key(question)
+        cached = self.cache.get(cache_key)
+        if cached:
+            self.stats["cache_hits"] += 1
+            yield f"event: meta\ndata: {_json.dumps({'intent': cached.get('intent'), 'query_rewritten': cached.get('query_rewritten'), 'from_cache': True})}\n\n"
+            yield f"event: token\ndata: {_json.dumps({'token': cached['answer']})}\n\n"
+            yield f"event: sources\ndata: {_json.dumps({'sources': cached.get('sources', []), 'confident': cached.get('confident', True), 'confidence_score': cached.get('confidence_score', 0), 'response_time_ms': round((time.time() - start_time) * 1000, 2)})}\n\n"
+            yield "event: done\ndata: [DONE]\n\n"
+            return
+
+        # Step 2-6: Router → Rewriter → Retrieval → Reranker → Context (same as query())
+        intent = await self.router.classify(question)
+        if intent == "off_topic":
+            resp = self._off_topic_response(question, start_time)
+            yield f"event: token\ndata: {_json.dumps({'token': resp['answer']})}\n\n"
+            yield f"event: sources\ndata: {_json.dumps({'sources': [], 'confident': True, 'confidence_score': 1.0, 'response_time_ms': resp['response_time_ms'], 'intent': 'off_topic'})}\n\n"
+            yield "event: done\ndata: [DONE]\n\n"
+            return
+
+        rewritten = await self.rewriter.rewrite(question, intent=intent)
+
+        # Send meta event (intent + rewrite info)
+        yield f"event: meta\ndata: {_json.dumps({'intent': intent, 'query_rewritten': rewritten if rewritten != question else None, 'from_cache': False})}\n\n"
+
+        candidates = await self.hybrid_retriever.search(
+            query=rewritten, vectorstore=self.vectorstore, top_k=settings.TOP_K_RETRIEVAL,
+        )
+        if not candidates:
+            resp = self._no_docs_response(question, start_time)
+            yield f"event: token\ndata: {_json.dumps({'token': resp['answer']})}\n\n"
+            yield f"event: sources\ndata: {_json.dumps({'sources': [], 'confident': True, 'confidence_score': 0.95, 'response_time_ms': resp['response_time_ms']})}\n\n"
+            yield "event: done\ndata: [DONE]\n\n"
+            return
+
+        top_docs = await self.reranker.rerank(query=question, documents=candidates, top_k=settings.TOP_K_RESULTS)
+        if not top_docs:
+            resp = self._no_docs_response(question, start_time)
+            yield f"event: token\ndata: {_json.dumps({'token': resp['answer']})}\n\n"
+            yield f"event: sources\ndata: {_json.dumps({'sources': [], 'confident': True, 'confidence_score': 0.95, 'response_time_ms': resp['response_time_ms']})}\n\n"
+            yield "event: done\ndata: [DONE]\n\n"
+            return
+
+        context = self.context_builder.build(top_docs)
+
+        # Step 7: Build prompt
+        prompt_template = INTENT_PROMPTS.get(intent, FACTUAL_PROMPT)
+        if intent in ("summary", "risk"):
+            filled_prompt = prompt_template.format(context=context)
+        else:
+            filled_prompt = prompt_template.format(context=context, question=question)
+
+        # Step 7b: STREAM LLM tokens
+        from langchain_openai import ChatOpenAI
+        streaming_llm = ChatOpenAI(
+            openai_api_key=settings.OPENAI_API_KEY,
+            model=settings.OPENAI_MODEL,
+            temperature=settings.TEMPERATURE,
+            max_tokens=1000,
+            streaming=True,
+        )
+
+        full_answer = ""
+        for chunk in streaming_llm.stream(filled_prompt):
+            token = chunk.content
+            if token:
+                full_answer += token
+                yield f"event: token\ndata: {_json.dumps({'token': token})}\n\n"
+
+        # Step 8: Hallucination detection + sources
+        sources = self._format_sources(top_docs)
+        is_confident, confidence_score = self.hallucination_detector.analyze(full_answer, sources)
+        response_time = round((time.time() - start_time) * 1000, 2)
+
+        # Send final sources event
+        yield f"event: sources\ndata: {_json.dumps({'sources': [s.dict() for s in sources], 'confident': is_confident, 'confidence_score': confidence_score, 'response_time_ms': response_time})}\n\n"
+
+        # Cache + history + DB log (same as non-streaming)
+        response = {
+            "answer": full_answer,
+            "sources": [s.dict() for s in sources],
+            "confident": is_confident,
+            "confidence_score": confidence_score,
+            "from_cache": False,
+            "query_rewritten": rewritten if rewritten != question else None,
+            "intent": intent,
+            "response_time_ms": response_time,
+            "timestamp": datetime.now().isoformat(),
+        }
+        self.cache.set(cache_key, response)
+
+        if session_id:
+            if session_id not in self.conversation_history:
+                self.conversation_history[session_id] = []
+            self.conversation_history[session_id].extend([
+                {"role": "user", "content": question},
+                {"role": "assistant", "content": full_answer},
+            ])
+
+        asyncio.create_task(self._safe_log_query_to_db(
+            question=question, rewritten_query=rewritten if rewritten != question else None,
+            answer=full_answer, confidence_score=confidence_score, confident=is_confident,
+            from_cache=False, response_time_ms=response_time, user_id=user_id, session_id=session_id,
+        ))
+
+        yield "event: done\ndata: [DONE]\n\n"
+
     # ─── RESPONSE BUILDERS ───────────────────────────────────────────────
 
     def _demo_response(self, question: str, start_time: float) -> dict:

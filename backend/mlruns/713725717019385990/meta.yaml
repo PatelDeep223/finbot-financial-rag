@@ -1,0 +1,7 @@
+artifact_location: file:///home/ubuntu/Deep_Code/finbot-financial-rag/backend/mlruns/713725717019385990
+creation_time: 1775021725985
+experiment_id: '713725717019385990'
+last_update_time: 1775021725985
+lifecycle_stage: active
+name: finbot-rag-hyperparams
+workspace: default

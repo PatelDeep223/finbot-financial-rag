@@ -1,0 +1,14 @@
+artifact_uri: file:///home/ubuntu/Deep_Code/finbot-financial-rag/backend/mlruns/713725717019385990/0bfc630f5b4b47f49a681d3bb4fd3f4e/artifacts
+end_time: 1775021825368
+entry_point_name: ''
+experiment_id: '713725717019385990'
+lifecycle_stage: active
+run_id: 0bfc630f5b4b47f49a681d3bb4fd3f4e
+run_name: cs200_k20_002
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1775021807802
+status: 3
+tags: []
+user_id: ubuntu

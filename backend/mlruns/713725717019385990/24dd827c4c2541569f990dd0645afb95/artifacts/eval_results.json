@@ -1,0 +1,66 @@
+{
+  "num_samples": 5,
+  "average_scores": {
+    "faithfulness": 0.7,
+    "answer_relevancy": 0.82,
+    "context_precision": 0.6,
+    "context_recall": 0.4
+  },
+  "per_sample": [
+    {
+      "question": "What was NovaTech's Q3 2024 total revenue?",
+      "faithfulness": 0.0,
+      "faithfulness_reason": "The answer correctly states that there is insufficient data to determine Q3 2024 total revenue, as no specific claims were made in the context.",
+      "answer_relevancy": 0.1,
+      "answer_relevancy_reason": "Appropriate refusal due to lack of information",
+      "context_precision": 0.0,
+      "context_precision_reason": "0 of 5 chunks relevant, all chunks are irrelevant or boilerplate text",
+      "context_recall": 0.0,
+      "context_recall_reason": "0 of 2 ground truth claims covered"
+    },
+    {
+      "question": "What is the operating margin for Q3 2024?",
+      "faithfulness": 1.0,
+      "faithfulness_reason": "All claims are supported by the context.",
+      "answer_relevancy": 1.0,
+      "answer_relevancy_reason": "The answer directly addresses the question by providing the specific operating margin for Q3 2024.",
+      "context_precision": 0.75,
+      "context_precision_reason": "3 of 5 chunks relevant, some noise from unrelated revenue and cash flow information",
+      "context_recall": 0.5,
+      "context_recall_reason": "1 of 2 ground truth claims covered"
+    },
+    {
+      "question": "Which business segment grew the fastest?",
+      "faithfulness": 1.0,
+      "faithfulness_reason": "All claims are supported by the context.",
+      "answer_relevancy": 1.0,
+      "answer_relevancy_reason": "The answer directly addresses the question by specifying that the Cloud Services segment grew the fastest with a 22% growth rate.",
+      "context_precision": 0.75,
+      "context_precision_reason": "3 of 5 chunks relevant, some noise from unrelated segments and boilerplate text",
+      "context_recall": 0.5,
+      "context_recall_reason": "1 of 2 ground truth claims covered"
+    },
+    {
+      "question": "What is the Q4 2024 revenue guidance?",
+      "faithfulness": 1.0,
+      "faithfulness_reason": "All claims are supported by the context.",
+      "answer_relevancy": 1.0,
+      "answer_relevancy_reason": "The answer directly addresses the Q4 2024 revenue guidance with the specific range provided.",
+      "context_precision": 0.75,
+      "context_precision_reason": "2 of 3 chunks relevant, 1 chunk irrelevant (boilerplate text)",
+      "context_recall": 0.5,
+      "context_recall_reason": "1 of 2 ground truth claims covered"
+    },
+    {
+      "question": "What was the free cash flow in Q3 2024?",
+      "faithfulness": 0.5,
+      "faithfulness_reason": "The claim about the free cash flow range in Q3 2024 being approximately $395M to $415M is unsupported as it does not match the exact figures provided in the context.",
+      "answer_relevancy": 1.0,
+      "answer_relevancy_reason": "The answer directly addresses the question by providing the exact free cash flow amount in Q3 2024.",
+      "context_precision": 0.75,
+      "context_precision_reason": "3 of 5 chunks relevant, some noise from irrelevant metrics",
+      "context_recall": 0.5,
+      "context_recall_reason": "1 of 2 ground truth claims covered"
+    }
+  ]
+}
