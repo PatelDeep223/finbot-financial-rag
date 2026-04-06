@@ -5,6 +5,7 @@ import { apiFetch } from "@/lib/api";
 import { useStats } from "@/hooks/useStats";
 import { DocumentInfo } from "@/lib/types";
 import UploadZone from "./UploadZone";
+import { FiFileText, FiFile } from "react-icons/fi";
 
 export default function Sidebar() {
   const [docs, setDocs] = useState<DocumentInfo[]>([]);
@@ -54,7 +55,11 @@ export default function Sidebar() {
                 key={doc.filename}
                 className="flex items-center gap-2.5 p-2.5 rounded-lg bg-[#1a2235] border border-[#1e2d45] text-xs"
               >
-                <span className="text-lg">{doc.filename.endsWith(".pdf") ? "📕" : "📄"}</span>
+                {doc.filename.endsWith(".pdf") ? (
+                  <FiFileText className="w-5 h-5 text-red-400 shrink-0" />
+                ) : (
+                  <FiFile className="w-5 h-5 text-slate-400 shrink-0" />
+                )}
                 <div className="min-w-0 flex-1">
                   <div className="text-white font-medium truncate">{doc.filename}</div>
                   <div className="text-slate-500 text-[11px]">

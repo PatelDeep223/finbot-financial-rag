@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback } from "react";
 import { apiFetch } from "@/lib/api";
 import { useToast } from "./Toast";
+import { FiUploadCloud, FiLoader } from "react-icons/fi";
 
 interface UploadZoneProps {
   onUploaded: () => void;
@@ -65,7 +66,7 @@ export default function UploadZone({ onUploaded }: UploadZoneProps) {
       }`}
       onClick={() => inputRef.current?.click()}
     >
-      <div className="text-2xl mb-2">📄</div>
+      <FiUploadCloud className="w-7 h-7 text-slate-400 mx-auto mb-2" />
       <div className="text-xs text-slate-400 leading-relaxed">
         Drop PDF or TXT files
         <br />
@@ -75,7 +76,7 @@ export default function UploadZone({ onUploaded }: UploadZoneProps) {
         disabled={uploading}
         className="mt-3 w-full py-2 rounded-lg bg-gradient-to-r from-cyan-500 to-purple-600 text-white text-xs font-medium hover:opacity-90 disabled:opacity-50 transition"
       >
-        {uploading ? "Uploading..." : "Choose File"}
+        {uploading ? <><FiLoader className="w-3 h-3 inline animate-spin mr-1" />Uploading...</> : "Choose File"}
       </button>
       <input
         ref={inputRef}

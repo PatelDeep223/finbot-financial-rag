@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { FiTrendingUp } from "react-icons/fi";
 
 interface AuthFormProps {
   mode: "login" | "signup";
@@ -35,8 +36,8 @@ export default function AuthForm({ mode, onSubmit }: AuthFormProps) {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-gradient-to-br from-cyan-400 to-purple-600 text-2xl mb-4">
-            💹
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-gradient-to-br from-cyan-400 to-purple-600 text-white mb-4">
+            <FiTrendingUp className="w-7 h-7" />
           </div>
           <h1 className="text-3xl font-serif bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
             FinBot

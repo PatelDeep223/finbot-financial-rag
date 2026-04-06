@@ -5,13 +5,14 @@ import { apiUrl } from "@/lib/api";
 import { getToken } from "@/lib/auth";
 import { Message } from "@/lib/types";
 import MessageBubble from "./MessageBubble";
+import { FiTrendingUp, FiSend } from "react-icons/fi";
 
 const SAMPLE_QUESTIONS = [
-  "🔍 What is the Q3 revenue?",
-  "⚖️ Compare Q3 vs Q2 revenue",
-  "📋 Summarize the risk factors",
-  "🔍 What is the operating margin?",
-  "🔍 How much free cash flow?",
+  "What is the Q3 revenue?",
+  "Compare Q3 vs Q2 revenue",
+  "Summarize the risk factors",
+  "What is the operating margin?",
+  "How much free cash flow?",
 ];
 
 export default function ChatArea() {
@@ -163,7 +164,9 @@ export default function ChatArea() {
       <div className="flex-1 overflow-y-auto px-6 py-6 space-y-5 scrollbar-thin">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center gap-4">
-            <div className="text-5xl animate-bounce-slow">💹</div>
+            <div className="animate-bounce-slow">
+              <FiTrendingUp className="w-12 h-12 text-cyan-400" />
+            </div>
             <h2 className="text-2xl font-serif bg-gradient-to-r from-white to-cyan-400 bg-clip-text text-transparent">
               Financial Intelligence Assistant
             </h2>
@@ -209,7 +212,7 @@ export default function ChatArea() {
             disabled={isLoading || !input.trim()}
             className="w-11 h-11 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 flex items-center justify-center text-white text-lg hover:opacity-90 disabled:opacity-40 transition shrink-0"
           >
-            ➤
+            <FiSend className="w-5 h-5" />
           </button>
         </div>
         <div className="text-[11px] text-slate-600 text-center mt-2">

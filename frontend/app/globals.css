@@ -53,3 +53,20 @@ body::before {
 .animate-bounce-slow {
   animation: bounce-slow 3s ease-in-out infinite;
 }
+
+/* Markdown content - table scroll on mobile */
+.markdown-content table {
+  display: block;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.markdown-content img {
+  max-width: 100%;
+  border-radius: 0.5rem;
+}
+
+/* Remove extra margins inside markdown lists */
+.markdown-content li > p {
+  margin-bottom: 0;
+}
