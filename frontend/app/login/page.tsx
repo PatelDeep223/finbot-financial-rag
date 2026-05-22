@@ -10,12 +10,12 @@ export default function LoginPage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (user) router.push("/");
+    if (user) router.push("/app");
   }, [user, router]);
 
   const handleLogin = async (data: { email: string; password: string }) => {
     const err = await login(data.email, data.password);
-    if (!err) router.push("/");
+    if (!err) router.push("/app");
     return err;
   };
 

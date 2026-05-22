@@ -7,12 +7,25 @@ import { getToken, setToken, clearToken, setStoredUser } from "@/lib/auth";
 import { UserResponse } from "@/lib/types";
 import React from "react";
 
+// ─── Demo account (no backend required) ─────────────────────────────────────
+// Lets visitors explore the app without a working auth backend — useful for
+// portfolio / showcase deployments.
+const DEMO_TOKEN = "finbot-demo-session";
+const DEMO_USER: UserResponse = {
+  id: 0,
+  username: "Demo User",
+  email: "demo@finbot.app",
+  is_active: true,
+};
+
 interface AuthContextType {
   user: UserResponse | null;
   token: string | null;
   isLoading: boolean;
+  isDemo: boolean;
   login: (email: string, password: string) => Promise<string | null>;
   signup: (username: string, email: string, password: string) => Promise<string | null>;
+  demoLogin: () => void;
   logout: () => void;
 }
 
@@ -31,6 +44,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
       return;
     }
+
+    // Restore a demo session without contacting the backend
+    if (savedToken === DEMO_TOKEN) {
+      setTokenState(DEMO_TOKEN);
+      setUser(DEMO_USER);
+      setIsLoading(false);
+      return;
+    }
+
     setTokenState(savedToken);
 
     apiFetch("/api/v1/auth/me")
@@ -77,6 +99,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return null;
   }, []);
 
+  // Instant demo access — no backend call, no credentials
+  const demoLogin = useCallback(() => {
+    setToken(DEMO_TOKEN);
+    setTokenState(DEMO_TOKEN);
+    setUser(DEMO_USER);
+    setStoredUser(DEMO_USER);
+  }, []);
+
   const logout = useCallback(() => {
     clearToken();
     setTokenState(null);
@@ -86,7 +116,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return React.createElement(
     AuthContext.Provider,
-    { value: { user, token, isLoading, login, signup, logout } },
+    {
+      value: {
+        user,
+        token,
+        isLoading,
+        isDemo: token === DEMO_TOKEN,
+        login,
+        signup,
+        demoLogin,
+        logout,
+      },
+    },
     children
   );
 }

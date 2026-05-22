@@ -10,12 +10,12 @@ export default function SignupPage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (user) router.push("/");
+    if (user) router.push("/app");
   }, [user, router]);
 
   const handleSignup = async (data: { username?: string; email: string; password: string }) => {
     const err = await signup(data.username || "", data.email, data.password);
-    if (!err) router.push("/");
+    if (!err) router.push("/app");
     return err;
   };
 

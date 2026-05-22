@@ -61,20 +61,20 @@ export default function UploadZone({ onUploaded }: UploadZoneProps) {
       onDrop={handleDrop}
       className={`border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-all ${
         dragging
-          ? "border-cyan-400 bg-cyan-400/10"
-          : "border-[#1e2d45] bg-[#1a2235] hover:border-cyan-400/50"
+          ? "border-emerald-500 bg-emerald-50"
+          : "border-slate-300 bg-white hover:border-emerald-400"
       }`}
       onClick={() => inputRef.current?.click()}
     >
       <FiUploadCloud className="w-7 h-7 text-slate-400 mx-auto mb-2" />
-      <div className="text-xs text-slate-400 leading-relaxed">
+      <div className="text-xs text-slate-500 leading-relaxed">
         Drop PDF or TXT files
         <br />
         for financial analysis
       </div>
       <button
         disabled={uploading}
-        className="mt-3 w-full py-2 rounded-lg bg-gradient-to-r from-cyan-500 to-purple-600 text-white text-xs font-medium hover:opacity-90 disabled:opacity-50 transition"
+        className="mt-3 w-full py-2 rounded-lg bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 disabled:opacity-50 transition"
       >
         {uploading ? <><FiLoader className="w-3 h-3 inline animate-spin mr-1" />Uploading...</> : "Choose File"}
       </button>

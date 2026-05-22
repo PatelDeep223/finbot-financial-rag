@@ -32,37 +32,37 @@ export default function Sidebar() {
     : "0s";
 
   return (
-    <aside className="w-72 bg-[#111827] border-r border-[#1e2d45] flex flex-col overflow-hidden shrink-0">
+    <aside className="w-72 bg-slate-50 border-r border-slate-200 flex flex-col overflow-hidden shrink-0">
       {/* Upload */}
-      <div className="p-4 border-b border-[#1e2d45]">
-        <div className="text-[11px] text-slate-500 tracking-widest uppercase mb-3">
+      <div className="p-4 border-b border-slate-200">
+        <div className="text-[11px] text-slate-400 tracking-widest uppercase mb-3">
           Upload Documents
         </div>
         <UploadZone onUploaded={loadDocs} />
       </div>
 
       {/* Documents */}
-      <div className="p-4 border-b border-[#1e2d45] flex-1 overflow-y-auto">
-        <div className="text-[11px] text-slate-500 tracking-widest uppercase mb-3">
+      <div className="p-4 border-b border-slate-200 flex-1 overflow-y-auto scrollbar-thin">
+        <div className="text-[11px] text-slate-400 tracking-widest uppercase mb-3">
           Loaded Documents
         </div>
         {docs.length === 0 ? (
-          <p className="text-xs text-slate-600 text-center py-3">No documents yet</p>
+          <p className="text-xs text-slate-400 text-center py-3">No documents yet</p>
         ) : (
           <div className="space-y-2">
             {docs.map((doc) => (
               <div
                 key={doc.filename}
-                className="flex items-center gap-2.5 p-2.5 rounded-lg bg-[#1a2235] border border-[#1e2d45] text-xs"
+                className="flex items-center gap-2.5 p-2.5 rounded-lg bg-white border border-slate-200 text-xs"
               >
                 {doc.filename.endsWith(".pdf") ? (
-                  <FiFileText className="w-5 h-5 text-red-400 shrink-0" />
+                  <FiFileText className="w-5 h-5 text-red-500 shrink-0" />
                 ) : (
                   <FiFile className="w-5 h-5 text-slate-400 shrink-0" />
                 )}
                 <div className="min-w-0 flex-1">
-                  <div className="text-white font-medium truncate">{doc.filename}</div>
-                  <div className="text-slate-500 text-[11px]">
+                  <div className="text-slate-900 font-medium truncate">{doc.filename}</div>
+                  <div className="text-slate-400 text-[11px]">
                     {doc.size_kb} KB{doc.chunks_created ? ` · ${doc.chunks_created} chunks` : ""}
                   </div>
                 </div>
@@ -74,7 +74,7 @@ export default function Sidebar() {
 
       {/* Stats */}
       <div className="p-4 mt-auto">
-        <div className="text-[11px] text-slate-500 tracking-widest uppercase mb-3">
+        <div className="text-[11px] text-slate-400 tracking-widest uppercase mb-3">
           System Stats
         </div>
         <div className="grid grid-cols-2 gap-2">
@@ -86,10 +86,10 @@ export default function Sidebar() {
           ].map((s) => (
             <div
               key={s.label}
-              className="bg-[#1a2235] border border-[#1e2d45] rounded-lg p-2.5 text-center"
+              className="bg-white border border-slate-200 rounded-lg p-2.5 text-center"
             >
-              <div className="text-lg font-mono text-cyan-400">{s.value}</div>
-              <div className="text-[10px] text-slate-500">{s.label}</div>
+              <div className="text-lg font-semibold text-emerald-600">{s.value}</div>
+              <div className="text-[10px] text-slate-400">{s.label}</div>
             </div>
           ))}
         </div>

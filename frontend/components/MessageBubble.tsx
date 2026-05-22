@@ -28,51 +28,51 @@ const INTENT_ICONS: Record<string, React.ReactNode> = {
   off_topic: <FiSlash className="w-3 h-3" />,
 };
 
-// ─── Markdown component overrides (dark theme) ─────────────────────────────
+// ─── Markdown component overrides (light theme) ────────────────────────────
 
 const mdComponents: Components = {
   table: ({ children, ...props }: ComponentPropsWithoutRef<"table">) => (
-    <div className="overflow-x-auto my-3 rounded-lg border border-[#1e2d45]">
+    <div className="overflow-x-auto my-3 rounded-lg border border-slate-200">
       <table className="w-full text-sm border-collapse" {...props}>
         {children}
       </table>
     </div>
   ),
   thead: ({ children, ...props }: ComponentPropsWithoutRef<"thead">) => (
-    <thead className="bg-cyan-500/8 border-b border-cyan-500/20" {...props}>
+    <thead className="bg-emerald-50 border-b border-emerald-100" {...props}>
       {children}
     </thead>
   ),
   th: ({ children, ...props }: ComponentPropsWithoutRef<"th">) => (
     <th
-      className="text-left px-3 py-2 text-cyan-400 font-semibold text-xs uppercase tracking-wider"
+      className="text-left px-3 py-2 text-emerald-700 font-semibold text-xs uppercase tracking-wider"
       {...props}
     >
       {children}
     </th>
   ),
   td: ({ children, ...props }: ComponentPropsWithoutRef<"td">) => (
-    <td className="px-3 py-2 border-b border-[#1e2d45] text-slate-300" {...props}>
+    <td className="px-3 py-2 border-b border-slate-100 text-slate-600" {...props}>
       {children}
     </td>
   ),
   tr: ({ children, ...props }: ComponentPropsWithoutRef<"tr">) => (
-    <tr className="even:bg-[#1a2235]/50" {...props}>
+    <tr className="even:bg-slate-50" {...props}>
       {children}
     </tr>
   ),
   strong: ({ children, ...props }: ComponentPropsWithoutRef<"strong">) => (
-    <strong className="text-cyan-300 font-semibold" {...props}>
+    <strong className="text-slate-900 font-semibold" {...props}>
       {children}
     </strong>
   ),
   ul: ({ children, ...props }: ComponentPropsWithoutRef<"ul">) => (
-    <ul className="list-disc list-inside space-y-1 my-2 text-slate-300" {...props}>
+    <ul className="list-disc list-inside space-y-1 my-2 text-slate-600" {...props}>
       {children}
     </ul>
   ),
   ol: ({ children, ...props }: ComponentPropsWithoutRef<"ol">) => (
-    <ol className="list-decimal list-inside space-y-1 my-2 text-slate-300" {...props}>
+    <ol className="list-decimal list-inside space-y-1 my-2 text-slate-600" {...props}>
       {children}
     </ol>
   ),
@@ -90,32 +90,32 @@ const mdComponents: Components = {
     const isBlock = className?.includes("language-");
     if (isBlock) {
       return (
-        <code className="block bg-[#0d1321] text-cyan-400 text-xs font-mono p-3 rounded-lg overflow-x-auto" {...props}>
+        <code className="block bg-slate-900 text-emerald-300 text-xs font-mono p-3 rounded-lg overflow-x-auto" {...props}>
           {children}
         </code>
       );
     }
     return (
-      <code className="bg-[#1a2235] text-cyan-400 px-1.5 py-0.5 rounded text-xs font-mono" {...props}>
+      <code className="bg-slate-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-mono" {...props}>
         {children}
       </code>
     );
   },
   pre: ({ children, ...props }: ComponentPropsWithoutRef<"pre">) => (
-    <pre className="bg-[#0d1321] border border-[#1e2d45] rounded-lg my-2 overflow-x-auto" {...props}>
+    <pre className="bg-slate-900 rounded-lg my-2 overflow-x-auto" {...props}>
       {children}
     </pre>
   ),
   hr: (props: ComponentPropsWithoutRef<"hr">) => (
-    <hr className="my-4 border-[#1e2d45]" {...props} />
+    <hr className="my-4 border-slate-200" {...props} />
   ),
   h3: ({ children, ...props }: ComponentPropsWithoutRef<"h3">) => (
-    <h3 className="text-base font-semibold text-white mt-3 mb-1" {...props}>
+    <h3 className="text-base font-semibold text-slate-900 mt-3 mb-1" {...props}>
       {children}
     </h3>
   ),
   h4: ({ children, ...props }: ComponentPropsWithoutRef<"h4">) => (
-    <h4 className="text-sm font-semibold text-slate-200 mt-2 mb-1" {...props}>
+    <h4 className="text-sm font-semibold text-slate-700 mt-2 mb-1" {...props}>
       {children}
     </h4>
   ),
@@ -182,10 +182,8 @@ export default function MessageBubble({ msg }: { msg: Message }) {
     <div className={`flex gap-3 animate-slide-in ${isUser ? "flex-row-reverse" : ""}`}>
       {/* Avatar */}
       <div
-        className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
-          isUser
-            ? "bg-gradient-to-br from-purple-600 to-cyan-400 text-white"
-            : "bg-gradient-to-br from-amber-500 to-orange-500 text-white"
+        className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 text-white ${
+          isUser ? "bg-emerald-600" : "bg-slate-900"
         }`}
       >
         {isUser ? <FiUser className="w-4 h-4" /> : <FiCpu className="w-4 h-4" />}
@@ -195,13 +193,13 @@ export default function MessageBubble({ msg }: { msg: Message }) {
       <div
         className={`max-w-[72%] border rounded-2xl px-4 py-3 ${
           isUser
-            ? "bg-gradient-to-br from-cyan-500/10 to-purple-600/10 border-cyan-500/20 rounded-tr-sm"
-            : "bg-[#1a2235] border-[#1e2d45] rounded-tl-sm"
+            ? "bg-emerald-50 border-emerald-200 rounded-tr-sm"
+            : "bg-slate-50 border-slate-200 rounded-tl-sm"
         }`}
       >
         {/* Rewrite notice */}
         {msg.query_rewritten && (
-          <div className="text-[11px] text-slate-500 italic mb-2 flex items-center gap-1">
+          <div className="text-[11px] text-slate-400 italic mb-2 flex items-center gap-1">
             <FiRefreshCw className="w-3 h-3" />
             Query optimized: &quot;{msg.query_rewritten}&quot;
           </div>
@@ -209,23 +207,23 @@ export default function MessageBubble({ msg }: { msg: Message }) {
 
         {/* Message text */}
         {isUser ? (
-          <div className="text-sm leading-relaxed text-slate-200 whitespace-pre-wrap">
+          <div className="text-sm leading-relaxed text-slate-700 whitespace-pre-wrap">
             {msg.content}
           </div>
         ) : (
-          <div className="text-sm leading-relaxed text-slate-200 markdown-content">
+          <div className="text-sm leading-relaxed text-slate-700 markdown-content">
             {sections.map((section, i) => (
               <div key={i}>
                 {/* Section header */}
                 {section.type !== "body" && SECTION_LABELS[section.type] && (
-                  <div className="text-cyan-400 text-xs font-semibold uppercase tracking-wider mt-3 first:mt-0 mb-1">
+                  <div className="text-emerald-700 text-xs font-semibold uppercase tracking-wider mt-3 first:mt-0 mb-1">
                     {SECTION_LABELS[section.type]}
                   </div>
                 )}
 
                 {/* Section body */}
                 {section.type === "insight" ? (
-                  <div className="bg-amber-500/5 border border-amber-500/15 rounded-lg px-3 py-2 text-amber-300 italic text-sm">
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-amber-800 italic text-sm">
                     <ReactMarkdown remarkPlugins={remarkPlugins} components={mdComponents}>
                       {section.content}
                     </ReactMarkdown>
@@ -249,27 +247,27 @@ export default function MessageBubble({ msg }: { msg: Message }) {
 
         {/* Streaming cursor */}
         {msg.isStreaming && (
-          <span className="inline-block w-2 h-4 bg-cyan-400 animate-pulse ml-0.5" />
+          <span className="inline-block w-2 h-4 bg-emerald-600 animate-pulse ml-0.5" />
         )}
 
         {/* Sources */}
         {msg.sources && msg.sources.length > 0 && (
           <div className="mt-3">
-            <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1.5">
+            <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1.5">
               Sources
             </div>
             {msg.sources.map((s, i) => (
               <div
                 key={i}
-                className="bg-black/20 border border-[#1e2d45] rounded-lg p-2 mb-1 text-xs"
+                className="bg-white border border-slate-200 rounded-lg p-2 mb-1 text-xs"
               >
-                <div className="text-cyan-400 font-medium mb-0.5 flex items-center gap-1">
+                <div className="text-emerald-700 font-medium mb-0.5 flex items-center gap-1">
                   <FiFile className="w-3 h-3" />
                   {s.source}
-                  {s.page ? ` \u00B7 Page ${s.page}` : ""}
-                  {s.score ? ` \u00B7 Score ${s.score.toFixed(2)}` : ""}
+                  {s.page ? ` · Page ${s.page}` : ""}
+                  {s.score ? ` · Score ${s.score.toFixed(2)}` : ""}
                 </div>
-                <div className="text-slate-400 text-[11px] leading-snug">{s.content}</div>
+                <div className="text-slate-500 text-[11px] leading-snug">{s.content}</div>
               </div>
             ))}
           </div>
@@ -277,12 +275,12 @@ export default function MessageBubble({ msg }: { msg: Message }) {
 
         {/* Confidence bar */}
         {msg.confidence_score !== undefined && !msg.isStreaming && msg.role === "bot" && (
-          <div className="flex items-center gap-2 mt-3 pt-3 border-t border-[#1e2d45] flex-wrap">
+          <div className="flex items-center gap-2 mt-3 pt-3 border-t border-slate-200 flex-wrap">
             <span
               className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border ${
                 msg.confident
-                  ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/20"
-                  : "bg-red-500/15 text-red-400 border-red-500/20"
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                  : "bg-red-50 text-red-600 border-red-200"
               }`}
             >
               {msg.confident ? (
@@ -294,21 +292,21 @@ export default function MessageBubble({ msg }: { msg: Message }) {
             </span>
 
             {msg.intent && (
-              <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-purple-500/15 text-purple-300 border border-purple-500/20">
+              <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
                 {INTENT_ICONS[msg.intent] || <FiSearch className="w-3 h-3" />}
                 {msg.intent}
               </span>
             )}
 
             {msg.from_cache && (
-              <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-500/15 text-amber-400 border border-amber-500/20">
+              <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
                 <FiZap className="w-3 h-3" />
                 cached
               </span>
             )}
 
             {msg.response_time_ms !== undefined && (
-              <span className="text-[11px] text-slate-500 font-mono ml-auto">
+              <span className="text-[11px] text-slate-400 ml-auto">
                 {msg.response_time_ms}ms
               </span>
             )}

@@ -163,22 +163,22 @@ export default function ChatArea() {
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-6 py-6 space-y-5 scrollbar-thin">
         {messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center gap-4">
-            <div className="animate-bounce-slow">
-              <FiTrendingUp className="w-12 h-12 text-cyan-400" />
+          <div className="flex flex-col items-center justify-center h-full text-center gap-2.5">
+            <div className="animate-bounce-slow w-14 h-14 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center mb-0.5">
+              <FiTrendingUp className="w-7 h-7 text-emerald-600" />
             </div>
-            <h2 className="text-2xl font-serif bg-gradient-to-r from-white to-cyan-400 bg-clip-text text-transparent">
+            <h2 className="text-2xl font-serif text-slate-900">
               Financial Intelligence Assistant
             </h2>
-            <p className="text-slate-400 text-sm max-w-md leading-relaxed">
+            <p className="text-slate-500 text-sm max-w-md leading-relaxed">
               Upload financial documents and ask questions. Powered by hybrid retrieval, cross-encoder reranking, and anti-hallucination.
             </p>
-            <div className="flex flex-wrap gap-2 justify-center mt-2">
+            <div className="flex flex-wrap gap-2 justify-center mt-3 max-w-xl">
               {SAMPLE_QUESTIONS.map((q) => (
                 <button
                   key={q}
                   onClick={() => sendQuery(q)}
-                  className="px-3 py-1.5 rounded-full bg-[#1a2235] border border-[#1e2d45] text-xs text-slate-400 hover:border-cyan-400/50 hover:text-cyan-400 transition"
+                  className="px-3 py-1.5 rounded-full bg-white border border-slate-200 text-xs text-slate-500 hover:border-emerald-400 hover:text-emerald-600 transition"
                 >
                   {q}
                 </button>
@@ -192,7 +192,7 @@ export default function ChatArea() {
       </div>
 
       {/* Input */}
-      <div className="px-6 py-4 bg-[#111827]/95 border-t border-[#1e2d45] backdrop-blur-xl">
+      <div className="px-6 py-4 bg-white border-t border-slate-200">
         <div className="flex gap-3 items-end">
           <textarea
             ref={textareaRef}
@@ -205,17 +205,17 @@ export default function ChatArea() {
             onKeyDown={handleKeyDown}
             placeholder="Ask a question about your financial documents..."
             rows={1}
-            className="flex-1 px-4 py-3 rounded-xl bg-[#1a2235] border border-[#1e2d45] text-white text-sm placeholder-slate-500 focus:border-cyan-500/40 focus:outline-none resize-none min-h-[46px] max-h-[120px] leading-relaxed"
+            className="flex-1 px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-sm placeholder-slate-400 focus:border-emerald-500 focus:bg-white focus:outline-none resize-none min-h-[46px] max-h-[120px] leading-relaxed transition"
           />
           <button
             onClick={() => sendQuery(input)}
             disabled={isLoading || !input.trim()}
-            className="w-11 h-11 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 flex items-center justify-center text-white text-lg hover:opacity-90 disabled:opacity-40 transition shrink-0"
+            className="w-11 h-11 rounded-xl bg-emerald-600 flex items-center justify-center text-white text-lg hover:bg-emerald-700 disabled:opacity-40 transition shrink-0"
           >
             <FiSend className="w-5 h-5" />
           </button>
         </div>
-        <div className="text-[11px] text-slate-600 text-center mt-2">
+        <div className="text-[11px] text-slate-400 text-center mt-2">
           Enter to send · Shift+Enter for new line · Hybrid RAG + Reranker + Anti-Hallucination
         </div>
       </div>
