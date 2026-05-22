@@ -30,13 +30,15 @@ logger = logging.getLogger(__name__)
 
 # Response format appended to all prompts
 RESPONSE_FORMAT = """
-Format your response exactly like this:
+Format your response using markdown:
 
 Answer:
-<your main answer here>
+<your main answer — use **bold** for key financial figures like **$4.2B** or **18.5%**>
+<use markdown tables when comparing metrics across periods>
+<use bullet points for listing multiple items>
 
 Key Insight:
-<one-line interpretation or takeaway>
+<one-line interpretation — **bold** the most important number>
 
 Source:
 <document name + page number>"""
@@ -52,11 +54,10 @@ Rules:
 - Always include key numbers (revenue, EPS, etc.) clearly.
 - Keep answers concise, professional, and analyst-style.
 
-Style Guidelines:
-- Start with: "According to the report..."
-- Use complete sentences
-- Highlight key metrics (numbers, percentages)
-- Avoid raw data dumping
+Formatting:
+- Use **bold** for key metrics and dollar amounts (e.g., **$4.2B**, **18.5%**)
+- Use bullet points when listing multiple data points
+- Use markdown tables when presenting multiple metrics
 """ + RESPONSE_FORMAT + """
 
 Context:
@@ -80,9 +81,10 @@ Focus on:
 - Major business drivers (segments, AI, cloud)
 - Final outlook
 
-Avoid:
-- Listing too many raw numbers
-- Repeating same data
+Formatting:
+- Use bullet points for key metrics
+- Use **bold** for the most important numbers
+- Use a markdown table if summarizing multiple metrics across periods
 """ + RESPONSE_FORMAT + """
 
 Context:
@@ -98,9 +100,14 @@ COMPARISON_PROMPT = PromptTemplate(
 Compare the values across different periods clearly.
 
 Rules:
-- Mention both values
-- Highlight increase/decrease
-- Give a short interpretation
+- Present comparisons in a markdown table like:
+
+| Metric | Period 1 | Period 2 | Change |
+|--------|----------|----------|--------|
+| Revenue | **$X** | **$Y** | **+Z%** |
+
+- Use **bold** for all key numbers
+- Add a short interpretation paragraph after the table
 """ + RESPONSE_FORMAT + """
 
 Context:
@@ -118,13 +125,11 @@ RISK_PROMPT = PromptTemplate(
 
 Identify and summarize key risks from the report.
 
-Focus on:
-- Economic risks
-- Competitive risks
-- Operational risks
-- Regulatory risks
-
-Keep it structured and clear.
+Format each risk as a bullet point with bold category:
+- **Economic Risk**: description here
+- **Competitive Risk**: description here
+- **Operational Risk**: description here
+- **Regulatory Risk**: description here
 """ + RESPONSE_FORMAT + """
 
 Context:
